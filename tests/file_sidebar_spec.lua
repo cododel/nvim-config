@@ -1,4 +1,5 @@
 local calls = {}
+local current_node
 
 package.preload["nvim-tree.api"] = function()
   return {
@@ -6,19 +7,21 @@ package.preload["nvim-tree.api"] = function()
       is_tree_buf = function()
         return true
       end,
+      get_node_under_cursor = function()
+        return current_node
+      end,
       change_root_to_node = function(node)
         calls.enter = node
       end,
     },
     node = {
+      expand = function(node)
+        calls.expand = (calls.expand or 0) + 1
+        node.expanded = true
+      end,
       navigate = {
         parent_close = function(node)
           calls.collapse = node
-        end,
-      },
-      open = {
-        edit = function(node)
-          calls.expand = node
         end,
       },
     },
@@ -37,12 +40,19 @@ local function mapping(lhs)
   error("mapping not found: " .. lhs)
 end
 
-local directory = { type = "directory", absolute_path = "/tmp/project/src" }
+local directory = { type = "directory", absolute_path = "/tmp/project/src", nodes = {} }
 mapping("h")(directory)
 assert(calls.collapse == directory, "h collapses the selected directory")
 
-mapping("l")(directory)
-assert(calls.expand == directory, "l expands the selected directory")
+current_node = directory
+mapping("l")()
+mapping("l")()
+assert(directory.expanded, "l expands the selected directory")
+assert(calls.expand == 2, "repeated l does not collapse the directory")
+
+current_node = { type = "file", absolute_path = "/tmp/project/README.md" }
+mapping("l")()
+assert(calls.expand == 2, "l does not open files")
 
 mapping("<CR>")(directory)
 assert(calls.enter == directory, "Enter changes root to the selected directory")

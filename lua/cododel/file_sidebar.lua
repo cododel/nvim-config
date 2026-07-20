@@ -10,11 +10,20 @@ local function mapping_options(bufnr, description)
   }
 end
 
+local function expand_directory()
+  local api = require("nvim-tree.api")
+  local node = api.tree.get_node_under_cursor()
+
+  if node and node.nodes then
+    api.node.expand(node)
+  end
+end
+
 function M.on_attach(bufnr)
   local api = require("nvim-tree.api")
 
   vim.keymap.set("n", "h", api.node.navigate.parent_close, mapping_options(bufnr, "Collapse"))
-  vim.keymap.set("n", "l", api.node.open.edit, mapping_options(bufnr, "Expand or open"))
+  vim.keymap.set("n", "l", expand_directory, mapping_options(bufnr, "Expand directory"))
   vim.keymap.set(
     "n",
     "<CR>",
