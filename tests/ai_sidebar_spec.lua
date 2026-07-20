@@ -104,7 +104,11 @@ ai.setup({ codex_cmd = { "sleep", "100" } })
 
 local state = ai._state
 local drawer = state.ai_drawer
-for _ = 1, 4 do
+local expected_cwd = vim.uv.cwd() .. "/lua"
+ai.panels.ai.focus_with_cwd(expected_cwd)
+assert(state.ai.sessions[1].cwd == expected_cwd, "Codex session uses the requested cwd")
+
+for _ = 1, 3 do
   drawer.open({ mode = "new", focus = true })
 end
 

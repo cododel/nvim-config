@@ -10,6 +10,7 @@ local runtime = {
   initialized = false,
   options = nil,
   pending_session_name = nil,
+  pending_session_cwd = nil,
   ai = {
     active = 1,
     sessions = {},
@@ -191,7 +192,8 @@ local function terminal_keymaps(bufnr)
 end
 
 local function create_codex_session(bufnr)
-  local root = project_root()
+  local root = runtime.pending_session_cwd or project_root()
+  runtime.pending_session_cwd = nil
 
   local title = runtime.pending_session_name
   runtime.pending_session_name = nil
@@ -204,6 +206,7 @@ local function create_codex_session(bufnr)
     bufnr = bufnr,
     job_id = nil,
     status = "starting",
+    cwd = root,
   }
 
   runtime.ai.sessions[#runtime.ai.sessions + 1] = session
@@ -397,6 +400,14 @@ local function focus_drawer(drawer)
   end
 end
 
+local function focus_ai_with_cwd(cwd)
+  if cwd and #runtime.ai.sessions == 0 then
+    runtime.pending_session_cwd = cwd
+  end
+
+  focus_drawer(runtime.ai_drawer)
+end
+
 local function hide_drawer(drawer)
   if drawer_is_open(drawer) then
     drawer.close()
@@ -443,6 +454,8 @@ M.panels = {
     return runtime.bottom_drawer
   end),
 }
+
+M.panels.ai.focus_with_cwd = focus_ai_with_cwd
 
 local function open_new_codex(name)
   runtime.pending_session_name = name and vim.trim(name) or nil

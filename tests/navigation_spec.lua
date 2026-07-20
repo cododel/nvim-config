@@ -52,7 +52,15 @@ local function panel()
 end
 
 local files = panel()
+files.get_ai_cwd = function()
+  return "/tmp/project/src"
+end
 local ai = panel()
+local ai_cwd
+ai.focus_with_cwd = function(cwd)
+  ai_cwd = cwd
+  ai.focus()
+end
 local bottom = panel()
 local navigation = dofile(vim.fn.getcwd() .. "/lua/cododel/navigation.lua")
 navigation.setup({
@@ -99,6 +107,7 @@ l()
 assert_current(editor_win, "files -> editor")
 l()
 assert_current(ai.win, "editor -> ai again")
+assert(ai_cwd == "/tmp/project/src", "files selection is passed to AI on the next focus")
 j()
 assert_current(bottom_win, "ai -> bottom")
 j()

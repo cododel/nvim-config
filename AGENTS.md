@@ -6,7 +6,7 @@
 
 - `lua/cododel/navigation.lua` — единственный router для directional focus `Cmd+H/J/K/L`.
 - `lua/cododel/ai_sidebar.lua` владеет drawer-панелями, terminal buffers и PTY lifecycle.
-- `lua/cododel/file_sidebar.lua` — тонкий adapter над NvimTree.
+- `lua/cododel/file_sidebar.lua` — тонкий adapter над NvimTree и источник cwd для запуска AI из выбранного node.
 - AI sidebar содержит несколько независимых Codex processes; bottom terminal всегда независим от них.
 - Для terminal processes используется native `vim.fn.termopen()`.
 - Панели можно скрывать без остановки процессов; закрытие процесса удаляет его terminal buffer.
@@ -54,5 +54,6 @@ git diff --check
 - `Cmd+J`: открыть или сфокусировать bottom terminal, запомнив источник; повторно скрыть и вернуться к источнику.
 - `Cmd+K`: из bottom terminal перейти в editor, не скрывая terminal.
 - `Shift+H/L` buffer-local и переключают только Codex tabs.
+- При переходе из Files в AI выбранная директория запускает новую Codex-сессию напрямую, а выбранный файл — из parent directory; остальные входы используют git-root fallback.
 
 При изменении этого контракта одновременно обновляются `navigation.lua`, focused-тесты и README.

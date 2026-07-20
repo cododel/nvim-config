@@ -19,6 +19,21 @@ local function expand_directory()
   end
 end
 
+local function get_ai_cwd()
+  local api = require("nvim-tree.api")
+  local node = api.tree.get_node_under_cursor()
+
+  if not node or not node.absolute_path then
+    return nil
+  end
+
+  if node.type == "directory" or node.nodes ~= nil then
+    return node.absolute_path
+  end
+
+  return vim.fn.fnamemodify(node.absolute_path, ":h")
+end
+
 function M.on_attach(bufnr)
   local api = require("nvim-tree.api")
 
@@ -74,6 +89,7 @@ end
 M.get_winid = tree_window
 M.is_open = is_open
 M.is_focused = is_focused
+M.get_ai_cwd = get_ai_cwd
 M.focus = focus_tree
 M.hide = hide_tree
 

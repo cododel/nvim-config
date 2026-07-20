@@ -6,6 +6,7 @@ local state = {
   file_sidebar = nil,
   panels = nil,
   bottom_return_zone = "editor",
+  pending_ai_cwd = nil,
 }
 
 local function is_drawer_window(winid)
@@ -109,7 +110,7 @@ local function panel_for_zone(zone)
   return state.panels[zone]
 end
 
-local function focus_zone(zone)
+local function focus_zone(zone, options)
   if zone == "editor" then
     focus_editor()
     return
@@ -117,7 +118,11 @@ local function focus_zone(zone)
 
   local panel = panel_for_zone(zone)
   if panel then
-    panel.focus()
+    if zone == "ai" and panel.focus_with_cwd then
+      panel.focus_with_cwd(options and options.cwd)
+    else
+      panel.focus()
+    end
   end
 end
 
@@ -148,11 +153,21 @@ local function move_horizontal(direction)
     return
   end
 
+  if zone == "files" and state.file_sidebar.get_ai_cwd then
+    state.pending_ai_cwd = state.file_sidebar.get_ai_cwd()
+  end
+
   if hide_on_horizontal_move[direction][zone] then
     panel_for_zone(zone).hide()
   end
 
-  focus_zone(target)
+  local options
+  if target == "ai" then
+    options = { cwd = state.pending_ai_cwd }
+    state.pending_ai_cwd = nil
+  end
+
+  focus_zone(target, options)
 end
 
 local function move_left()
@@ -171,6 +186,9 @@ local function move_down()
     focus_zone(state.bottom_return_zone)
   elseif zone then
     state.bottom_return_zone = zone
+    if zone == "files" and state.file_sidebar.get_ai_cwd then
+      state.pending_ai_cwd = state.file_sidebar.get_ai_cwd()
+    end
     state.panels.bottom.focus()
   end
 end

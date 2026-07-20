@@ -57,4 +57,19 @@ assert(calls.expand == 2, "l does not open files")
 mapping("<CR>")(directory)
 assert(calls.enter == directory, "Enter changes root to the selected directory")
 
+current_node = directory
+assert(
+  file_sidebar.get_ai_cwd() == directory.absolute_path,
+  "selected directory is used as the AI cwd"
+)
+
+current_node = { type = "file", absolute_path = "/tmp/project/src/main.lua" }
+assert(
+  file_sidebar.get_ai_cwd() == "/tmp/project/src",
+  "selected file uses its parent directory as the AI cwd"
+)
+
+current_node = nil
+assert(file_sidebar.get_ai_cwd() == nil, "missing tree node keeps the AI cwd unset")
+
 print("file_sidebar_spec: ok")
