@@ -1,4 +1,6 @@
 return {
   'goolord/alpha-nvim',
-  opts = require('alpha').setup(require 'alpha.themes.startify'.config)
+  config = function()
+    require('alpha').setup(require 'alpha.themes.startify'.config)
+  end,
 };

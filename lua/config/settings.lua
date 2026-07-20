@@ -15,8 +15,8 @@ opt.relativenumber = true
 -- Tabs
 opt.tabstop = 2
 opt.shiftwidth = 2
-cmd('au FileType py set tabstop=4')
-cmd('au FileType py set shiftwidth=4')
+cmd('au FileType python set tabstop=4')
+cmd('au FileType python set shiftwidth=4')
 opt.expandtab = true
 
 
