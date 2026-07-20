@@ -1,7 +1,23 @@
 return {
   { "kylechui/nvim-surround",  version = "*", event = "VeryLazy", config = true },
   { "akinsho/bufferline.nvim", config = true },
-  "nvim-telescope/telescope.nvim",
+  {
+    "nvim-telescope/telescope.nvim",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    config = function()
+      require("telescope").setup({
+        defaults = {
+          layout_strategy = "center",
+          layout_config = {
+            width = 0.82,
+            height = 0.72,
+          },
+          sorting_strategy = "ascending",
+        },
+      })
+      require("cododel.palette").setup()
+    end,
+  },
   "mbbill/undotree",
   {
     "kyazdani42/nvim-tree.lua",

@@ -15,3 +15,7 @@ nvim --headless -n -i NONE -u NONE \
 nvim --headless -n -i NONE -u NONE \
   "+luafile $repo_dir/tests/file_sidebar_spec.lua" \
   "+qa!"
+
+nvim --headless -n -i NONE -u NONE \
+  "+luafile $repo_dir/tests/palette_spec.lua" \
+  "+qa!"
