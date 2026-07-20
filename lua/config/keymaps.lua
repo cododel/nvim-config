@@ -39,6 +39,18 @@ map("n", "<Leader>$", "<Cmd>BufferLineGoToBuffer -1<CR>", default_opts)
 map("n", "H", "<Cmd>BufferLineCyclePrev<CR>", default_opts)
 map("n", "L", "<Cmd>BufferLineCycleNext<CR>", default_opts)
 
+-- Keep Vim motions available when the keyboard layout is Russian.
+for _, mode in ipairs({ "n", "x", "o" }) do
+  map(mode, "р", "h", default_opts)
+  map(mode, "о", "j", default_opts)
+  map(mode, "л", "k", default_opts)
+  map(mode, "д", "l", default_opts)
+  map(mode, "Р", "H", default_opts)
+  map(mode, "О", "J", default_opts)
+  map(mode, "Л", "K", default_opts)
+  map(mode, "Д", "L", default_opts)
+end
+
 -- By F1 clear the last search with highlighting
 map("n", "<F1>", ":nohl<CR>", default_opts)
 -- Shift + F1 = remove empty lines
