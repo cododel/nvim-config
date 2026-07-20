@@ -1,3 +1,13 @@
+local panel_filetypes = {
+  codex_terminal = true,
+  project_terminal = true,
+  NvimTree = true,
+}
+
+local function has_editor_context()
+  return not panel_filetypes[vim.bo.filetype]
+end
+
 return {
   "nvim-lualine/lualine.nvim",
   dependencies = {
@@ -7,14 +17,15 @@ return {
   },
   opts = {
     options = {
-      theme = 'catppuccin',
+      theme = 'auto',
+      globalstatus = true,
       component_separators = { left = '', right = '' },
       section_separators = { left = '', right = '' },
     },
     sections = {
       lualine_a = { 'mode' },
       lualine_b = { 'branch', 'diff', 'diagnostics' },
-      lualine_c = { { 'filename', path = 1 } },
+      lualine_c = { { 'filename', path = 1, cond = has_editor_context } },
       lualine_x = {
         {
           function()
@@ -34,6 +45,7 @@ return {
           end,
           icon = ' LSP:',
           color = { fg = '#ffffff', gui = 'bold' },
+          cond = has_editor_context,
         },
       },
       lualine_y = { "copilot", 'filetype' },

@@ -207,7 +207,7 @@ flowchart TD
 ### Интерфейс и навигация
 
 - Catppuccin Macchiato — цветовая схема.
-- Lualine — statusline с branch, diff, diagnostics, filetype и активным LSP.
+- Lualine — одна общая statusline снизу: branch, diff, diagnostics, filetype и активный LSP; путь к файлу и LSP скрываются, когда в фокусе terminal или NvimTree.
 - Bufferline — навигация по открытым buffers.
 - NvimTree — файловое дерево с синхронизацией корня проекта и Git-иконками.
 - Telescope — поиск файлов, grep, buffers, history, keymaps и registers.
