@@ -15,7 +15,7 @@ local function expand_directory()
   local node = api.tree.get_node_under_cursor()
 
   if node and node.nodes then
-    api.node.expand(node)
+    api.node.open.edit(node)
   end
 end
 

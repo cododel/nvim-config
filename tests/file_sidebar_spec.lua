@@ -16,9 +16,15 @@ package.preload["nvim-tree.api"] = function()
     },
     node = {
       expand = function(node)
-        calls.expand = (calls.expand or 0) + 1
+        calls.recursive_expand = (calls.recursive_expand or 0) + 1
         node.expanded = true
       end,
+      open = {
+        edit = function(node)
+          calls.expand = (calls.expand or 0) + 1
+          node.expanded = true
+        end,
+      },
       navigate = {
         parent_close = function(node)
           calls.collapse = node
@@ -49,6 +55,7 @@ mapping("l")()
 mapping("l")()
 assert(directory.expanded, "l expands the selected directory")
 assert(calls.expand == 2, "repeated l does not collapse the directory")
+assert(calls.recursive_expand == nil, "l does not recursively expand the directory")
 
 current_node = { type = "file", absolute_path = "/tmp/project/README.md" }
 mapping("l")()
