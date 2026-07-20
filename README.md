@@ -36,7 +36,7 @@ nvim
 ```mermaid
 flowchart LR
   E["Редактор кода"]
-  F["Cmd+B\nФайловое дерево"]
+  F["Cmd+H\nФайловое дерево"]
   A["Cmd+L\nAI sidebar\nCodex tabs"]
   T["Cmd+J\nBottom terminal"]
   C["Codex CLI\nотдельный PTY на чат"]
@@ -54,16 +54,25 @@ flowchart LR
 - NvimTree отвечает только за файловую навигацию.
 - Снятие фокуса с панели не закрывает её и не останавливает процесс.
 
-Модуль изолирован в [lua/cododel/ai_sidebar.lua](lua/cododel/ai_sidebar.lua) и [lua/cododel/file_sidebar.lua](lua/cododel/file_sidebar.lua). Он не меняет lifecycle LSP, completion, statusline или обычных терминалов.
+Модуль изолирован в [lua/cododel/ai_sidebar.lua](lua/cododel/ai_sidebar.lua), [lua/cododel/file_sidebar.lua](lua/cododel/file_sidebar.lua) и [lua/cododel/navigation.lua](lua/cododel/navigation.lua). Он не меняет lifecycle LSP, completion, statusline или обычных терминалов.
 
 ## Управление панелями
+
+### Directional navigation
+
+| Mapping | Действие |
+|---|---|
+| `Cmd+H` | Из editor открыть/focus Files; из Files скрыть её; из боковой панели перейти в editor |
+| `Cmd+J` | Из editor открыть/focus bottom terminal; из terminal скрыть его и перейти в editor |
+| `Cmd+K` | Из bottom terminal перейти в editor; в остальных зонах не действует |
+| `Cmd+L` | Из editor открыть/focus AI; из AI скрыть его; из Files перейти в editor |
+
+Панель открывается, если она скрыта, получает фокус, если уже открыта, и скрывается при повторном нажатии из самой панели. Процессы и buffers при снятии фокуса не завершаются. Если editor pane отсутствует, fallback-фокусом становится файловое дерево.
 
 ### AI sidebar
 
 | Mapping | Действие |
 |---|---|
-| `Cmd+L` | Открыть и сфокусировать sidebar; если он уже сфокусирован — снять фокус в редактор |
-| `Cmd+H` | Из Codex terminal перейти в редактор, оставив sidebar открытым |
 | `Shift+H` | Предыдущий Codex-чат в активном Codex terminal |
 | `Shift+L` | Следующий Codex-чат в активном Codex terminal |
 | `:CodexNew [name]` | Создать новый Codex-чат с отдельным процессом |
@@ -73,12 +82,12 @@ flowchart LR
 
 Первое открытие AI sidebar лениво запускает только один процесс Codex. Каждый новый чат получает собственный PTY и собственный scrollback.
 
+Если процесс Codex завершается, его terminal buffer и вкладка автоматически удаляются; остальные чаты продолжают работать.
+
 ### Bottom terminal
 
 | Mapping | Действие |
 |---|---|
-| `Cmd+J` | Открыть и сфокусировать нижний terminal; повторное нажатие из него скрывает панель |
-| `Cmd+K` | Перейти в основной редактор, не закрывая terminal |
 | `Ctrl+D` | Завершить shell и автоматически закрыть нижнюю панель вместе с её buffer |
 | `:ProjectTerminalToggle` | Открыть/скрыть нижнюю панель командой |
 
@@ -86,13 +95,7 @@ Bottom terminal независим от AI sidebar. В первой версии
 
 ### Файловое дерево
 
-| Mapping | Действие |
-|---|---|
-| `Cmd+B` | Закрытое дерево открыть и сфокусировать; из дерева снять фокус в редактор, оставив дерево открытым |
-| `Cmd+Shift+B` | Закрытое дерево открыть и сфокусировать; из сфокусированного дерева скрыть его |
-| `Ctrl+B` | Отключён |
-
-При выходе из AI sidebar или terminal фокусируется именно обычный editor pane, а не файловый навигатор.
+Файловое дерево управляется через `Cmd+H/J/K/L`. Отдельные `Cmd+B`, `Cmd+Shift+B` и `Ctrl+B` не используются.
 
 ## Настройка терминального профиля
 
@@ -100,16 +103,14 @@ Bottom terminal независим от AI sidebar. В первой версии
 
 | Клавиша | Sequence |
 |---|---|
-| `Cmd+L` | `ESC[99~` |
+| `Cmd+H` | `ESC[102~` |
 | `Cmd+J` | `ESC[98~` |
 | `Cmd+K` | `ESC[101~` |
-| `Cmd+H` | `ESC[102~` |
-| `Cmd+B` | `ESC[103~` |
-| `Cmd+Shift+B` | `ESC[104~` |
+| `Cmd+L` | `ESC[99~` |
 | `Shift+H` | `ESC[72;2u` |
 | `Shift+L` | `ESC[76;2u` |
 
-`Cmd+H` и `Shift+H/L` обрабатываются только в Codex terminal buffers. В обычных файлах стандартные Vim-команды `H` и `L` не изменены. Проверить пришедшую последовательность можно через `Ctrl+V` в Insert mode и `:verbose map`.
+`Cmd+H/J/K/L` обрабатываются navigation controller во всех нужных режимах, а `Shift+H/L` остаются buffer-local только в Codex terminal buffers. В обычных файлах стандартные Vim-команды `H` и `L` не изменены. Проверить пришедшую последовательность можно через `Ctrl+V` в Insert mode и `:verbose map`.
 
 ## Архитектура
 
@@ -126,6 +127,7 @@ flowchart TD
   P --> EDIT["Форматирование и Treesitter"]
   D --> AI["cododel.ai_sidebar"]
   D --> FS["cododel.file_sidebar"]
+  D --> N["cododel.navigation"]
 ```
 
 [init.lua](init.lua) загружает модули в следующем порядке:
@@ -147,7 +149,8 @@ flowchart TD
 │   │   └── settings.lua
 │   ├── cododel
 │   │   ├── ai_sidebar.lua
-│   │   └── file_sidebar.lua
+│   │   ├── file_sidebar.lua
+│   │   └── navigation.lua
 │   └── plugins
 │       ├── ai-sidebar.lua
 │       ├── alpha-greeter.lua

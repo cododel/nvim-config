@@ -23,7 +23,6 @@ local runtime = {
     status = "stopped",
     cwd = nil,
   },
-  last_editor_win = nil,
   ai_drawer = nil,
   bottom_drawer = nil,
 }
@@ -229,8 +228,6 @@ local function codex_next()
   end
 end
 
-local focus_editor_window
-
 local function terminal_keymaps(bufnr)
   local opts = {
     buffer = bufnr,
@@ -242,12 +239,10 @@ local function terminal_keymaps(bufnr)
   vim.keymap.set("n", "<S-H>", codex_previous, opts)
   vim.keymap.set("n", "<S-L>", codex_next, opts)
 
-  -- These CSI-u sequences are emitted by the terminal profile for Shift+H/L
-  -- and Cmd+H. They are intentionally buffer-local to Codex terminals.
+  -- These CSI-u sequences are emitted by the terminal profile for Shift+H/L.
+  -- They are intentionally buffer-local to Codex terminals.
   vim.keymap.set("t", "<Esc>[72;2u", codex_previous, opts)
   vim.keymap.set("t", "<Esc>[76;2u", codex_next, opts)
-  vim.keymap.set("t", "<Esc>[102~", focus_editor_window, opts)
-  vim.keymap.set("t", "<D-h>", focus_editor_window, opts)
 end
 
 local function create_codex_session(bufnr)
@@ -289,9 +284,19 @@ local function create_codex_session(bufnr)
     callback = function()
       session.status = "exited"
       session.job_id = nil
-      update_ai_active(bufnr)
-      update_ai_winbar()
-      save_state(session.cwd)
+
+      vim.schedule(function()
+        if #runtime.ai.sessions == 1
+          and runtime.ai_drawer
+          and runtime.ai_drawer.get_winid() ~= -1
+        then
+          runtime.ai_drawer.close()
+        end
+
+        if vim.api.nvim_buf_is_valid(bufnr) then
+          vim.api.nvim_buf_delete(bufnr, { force = true })
+        end
+      end)
     end,
   })
   vim.api.nvim_create_autocmd("BufWipeout", {
@@ -421,57 +426,101 @@ local function focus_or_toggle(drawer)
   end
 end
 
-local function is_drawer_window(winid)
-  return (runtime.ai_drawer and runtime.ai_drawer.does_own_window(winid))
-    or (runtime.bottom_drawer and runtime.bottom_drawer.does_own_window(winid))
+local function normalize_bottom_height()
+  local drawer = runtime.bottom_drawer
+  if not drawer then
+    return
+  end
+
+  local winid = drawer.get_winid()
+  if winid == -1 or not vim.api.nvim_win_is_valid(winid) then
+    return
+  end
+
+  local max_height = math.max(1, vim.o.lines - vim.o.cmdheight - 1)
+  local height = math.min(runtime.options.terminal_height, max_height)
+  pcall(vim.api.nvim_win_set_height, winid, height)
 end
 
-local function is_editor_window(winid)
-  if not vim.api.nvim_win_is_valid(winid) then
-    return false
-  end
-
-  local bufnr = vim.api.nvim_win_get_buf(winid)
-  local win_config = vim.api.nvim_win_get_config(winid)
-  local is_tree = false
-  local ok, tree_api = pcall(require, "nvim-tree.api")
-  if ok then
-    is_tree = tree_api.tree.is_tree_buf(bufnr)
-  end
-
-  return win_config.relative == ""
-    and not is_tree
-    and not is_drawer_window(winid)
-    and vim.bo[bufnr].buftype == ""
+local function drawer_is_open(drawer)
+  return drawer ~= nil and drawer.get_winid() ~= -1
 end
 
-local function remember_editor_window()
-  local winid = vim.api.nvim_get_current_win()
-  if is_editor_window(winid) then
-    runtime.last_editor_win = winid
+local function drawer_is_focused(drawer)
+  return drawer_is_open(drawer) and drawer.is_focused()
+end
+
+local function focus_drawer(drawer)
+  if not drawer then
+    return
+  end
+
+  if not drawer_is_open(drawer) then
+    drawer.open({ focus = true })
+  else
+    drawer.focus()
+  end
+
+  local winid = drawer.get_winid()
+  if winid ~= -1 and drawer.is_focused() then
+    enter_terminal_mode(winid)
+  end
+
+  if drawer == runtime.bottom_drawer then
+    vim.schedule(normalize_bottom_height)
   end
 end
 
-focus_editor_window = function()
-  local target = runtime.last_editor_win
-  if not target or not is_editor_window(target) then
-    target = nil
-    for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-      if is_editor_window(winid) then
-        target = winid
-        break
-      end
-    end
-  end
-
-  if target then
-    vim.api.nvim_set_current_win(target)
+local function hide_drawer(drawer)
+  if drawer_is_open(drawer) then
+    drawer.close()
   end
 end
+
+local function toggle_drawer(drawer)
+  if drawer_is_focused(drawer) then
+    hide_drawer(drawer)
+  else
+    focus_drawer(drawer)
+  end
+end
+
+local function make_panel_controller(get_drawer)
+  return {
+    get_winid = function()
+      local drawer = get_drawer()
+      return drawer and drawer.get_winid() or -1
+    end,
+    is_open = function()
+      return drawer_is_open(get_drawer())
+    end,
+    is_focused = function()
+      return drawer_is_focused(get_drawer())
+    end,
+    focus_or_open = function()
+      focus_drawer(get_drawer())
+    end,
+    hide = function()
+      hide_drawer(get_drawer())
+    end,
+    toggle = function()
+      toggle_drawer(get_drawer())
+    end,
+  }
+end
+
+M.panels = {
+  ai = make_panel_controller(function()
+    return runtime.ai_drawer
+  end),
+  bottom = make_panel_controller(function()
+    return runtime.bottom_drawer
+  end),
+}
 
 local function toggle_bottom_terminal()
-  remember_editor_window()
   focus_or_toggle(runtime.bottom_drawer)
+  vim.schedule(normalize_bottom_height)
 end
 
 local function open_new_codex(name)
@@ -546,20 +595,6 @@ local function create_commands()
   end, { desc = "Focus or toggle the project terminal" })
 end
 
-local function create_global_mappings()
-  local opts = { noremap = true, silent = true, nowait = true }
-
-  local toggle_sidebar = function()
-    focus_or_toggle(runtime.ai_drawer)
-  end
-  vim.keymap.set({ "n", "i", "t" }, "<Esc>[99~", toggle_sidebar, opts)
-  vim.keymap.set({ "n", "i", "t" }, "<D-l>", toggle_sidebar, opts)
-  vim.keymap.set({ "n", "i", "t" }, "<Esc>[98~", toggle_bottom_terminal, opts)
-  vim.keymap.set({ "n", "i", "t" }, "<D-j>", toggle_bottom_terminal, opts)
-  vim.keymap.set("t", "<Esc>[101~", focus_editor_window, opts)
-  vim.keymap.set("t", "<D-k>", focus_editor_window, opts)
-end
-
 function M.setup(options)
   if runtime.initialized then
     return
@@ -572,7 +607,10 @@ function M.setup(options)
 
   setup_drawers()
   create_commands()
-  create_global_mappings()
+  require("cododel.navigation").setup({
+    file_sidebar = require("cododel.file_sidebar"),
+    panels = M.panels,
+  })
 
   vim.api.nvim_create_autocmd("VimLeavePre", {
     group = vim.api.nvim_create_augroup("CodexSidebarPersistence", { clear = true }),
