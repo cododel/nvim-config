@@ -19,6 +19,21 @@ local function expand_directory()
   end
 end
 
+local function open_selected()
+  local api = require("nvim-tree.api")
+  local node = api.tree.get_node_under_cursor()
+
+  if not node then
+    return
+  end
+
+  if node.type == "directory" or node.nodes ~= nil then
+    api.tree.change_root_to_node(node)
+  else
+    api.node.open.edit(node)
+  end
+end
+
 local function get_ai_cwd()
   local api = require("nvim-tree.api")
   local node = api.tree.get_node_under_cursor()
@@ -42,8 +57,8 @@ function M.on_attach(bufnr)
   vim.keymap.set(
     "n",
     "<CR>",
-    api.tree.change_root_to_node,
-    mapping_options(bufnr, "Enter directory as root")
+    open_selected,
+    mapping_options(bufnr, "Open file or enter directory")
   )
 end
 

@@ -21,8 +21,15 @@ package.preload["nvim-tree.api"] = function()
       end,
       open = {
         edit = function(node)
-          calls.expand = (calls.expand or 0) + 1
-          node.expanded = true
+          if node.type == "file" then
+            calls.open = node
+          else
+            calls.expand = (calls.expand or 0) + 1
+            node.expanded = true
+          end
+        end,
+        preview = function(node)
+          calls.preview = node
         end,
       },
       navigate = {
@@ -61,8 +68,14 @@ current_node = { type = "file", absolute_path = "/tmp/project/README.md" }
 mapping("l")()
 assert(calls.expand == 2, "l does not open files")
 
-mapping("<CR>")(directory)
+current_node = directory
+mapping("<CR>")()
 assert(calls.enter == directory, "Enter changes root to the selected directory")
+
+local file = { type = "file", absolute_path = "/tmp/project/README.md" }
+current_node = file
+mapping("<CR>")()
+assert(calls.open == file, "Enter opens the selected file")
 
 current_node = directory
 assert(
