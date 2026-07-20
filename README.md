@@ -52,6 +52,7 @@ flowchart LR
 
 - Правый AI sidebar содержит несколько независимых terminal buffers и процессов Codex.
 - Нижняя панель — отдельный shell и не участвует в переключении Codex-вкладок.
+- Базовый фон всех pane прозрачен и берётся из terminal emulator; ANSI-заливки CLI остаются нативными. TokyoNight Moon отвечает за syntax и UI-акценты.
 - NvimTree отвечает только за файловую навигацию.
 - Снятие фокуса с панели не закрывает её и не останавливает процесс.
 
@@ -206,7 +207,7 @@ flowchart TD
 
 ### Интерфейс и навигация
 
-- Catppuccin Macchiato — цветовая схема.
+- TokyoNight Moon — прозрачная colorscheme для syntax и UI; базовые pane используют background terminal emulator, а terminal ANSI-палитра остаётся нативной.
 - Lualine — одна общая statusline снизу: branch, diff, diagnostics, filetype и активный LSP; путь к файлу и LSP скрываются, когда в фокусе terminal или NvimTree.
 - Bufferline — навигация по открытым buffers.
 - NvimTree — файловое дерево с синхронизацией корня проекта и Git-иконками.

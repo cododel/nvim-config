@@ -23,3 +23,11 @@ nvim --headless -n -i NONE -u NONE \
 nvim --headless -n -i NONE -u NONE \
   "+luafile $repo_dir/tests/lualine_spec.lua" \
   "+qa!"
+
+nvim --headless -n -i NONE -u NONE \
+  "+luafile $repo_dir/tests/theme_spec.lua" \
+  "+qa!"
+
+nvim --headless -n -i NONE -u NONE \
+  "+luafile $repo_dir/tests/highlights_spec.lua" \
+  "+qa!"
