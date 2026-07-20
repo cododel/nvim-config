@@ -1,13 +1,16 @@
-# Neovim configuration
+# Cododel: terminal-first Neovim editor
 
-Локальная конфигурация Neovim на Lua с менеджером плагинов [`lazy.nvim`](https://github.com/folke/lazy.nvim).
+Это новый концепт редактора поверх Neovim: основной рабочий экран остаётся редактором кода, а AI, shell и файловая навигация живут в отдельных persistent-панелях. Панели можно скрывать, не завершая процессы, и возвращать фокус прямо в редактор.
+
+Главный AI-инструмент — Codex CLI. Для этого интерфейса он выбран благодаря сочетанию сильных моделей, удобной квоты и CLI на Rust: terminal-first workflow хорошо соответствует производительности и отзывчивости самого редактора.
 
 ## Быстрый старт
 
 Требования:
 
-- Neovim 0.10 или новее;
-- `git` и `curl` для bootstrap `lazy.nvim`;
+- Neovim 0.12 или новее;
+- `git` и `curl` для bootstrap [`lazy.nvim`](https://github.com/folke/lazy.nvim);
+- `codex` в `PATH` для AI-панелей;
 - внешние инструменты форматирования и LSP-серверы, перечисленные ниже.
 
 После установки dotfiles через `stow` запусти:
@@ -16,7 +19,7 @@
 nvim
 ```
 
-При первом запуске `lazy.nvim` установит плагины согласно [lazy-lock.json](lazy-lock.json).
+При первом запуске `lazy.nvim` установит плагины согласно [lazy-lock.json](lazy-lock.json). Основной drawer-плагин [`nvim-drawer`](https://github.com/mikew/nvim-drawer) зафиксирован на конкретном commit, поскольку у проекта пока нет опубликованных релизов.
 
 Полезные команды внутри Neovim:
 
@@ -28,6 +31,86 @@ nvim
 :ConformInfo
 ```
 
+## Концепция рабочего пространства
+
+```mermaid
+flowchart LR
+  E["Редактор кода"]
+  F["Cmd+B\nФайловое дерево"]
+  A["Cmd+L\nAI sidebar\nCodex tabs"]
+  T["Cmd+J\nBottom terminal"]
+  C["Codex CLI\nотдельный PTY на чат"]
+  S["Shell\nотдельный PTY"]
+
+  E --- F
+  E --- A
+  E --- T
+  A --> C
+  T --> S
+```
+
+- Правый AI sidebar содержит несколько независимых terminal buffers и процессов Codex.
+- Нижняя панель — отдельный shell и не участвует в переключении Codex-вкладок.
+- NvimTree отвечает только за файловую навигацию.
+- Снятие фокуса с панели не закрывает её и не останавливает процесс.
+
+Модуль изолирован в [lua/cododel/ai_sidebar.lua](lua/cododel/ai_sidebar.lua) и [lua/cododel/file_sidebar.lua](lua/cododel/file_sidebar.lua). Он не меняет lifecycle LSP, completion, statusline или обычных терминалов.
+
+## Управление панелями
+
+### AI sidebar
+
+| Mapping | Действие |
+|---|---|
+| `Cmd+L` | Открыть и сфокусировать sidebar; если он уже сфокусирован — снять фокус в редактор |
+| `Cmd+H` | Из Codex terminal перейти в редактор, оставив sidebar открытым |
+| `Shift+H` | Предыдущий Codex-чат в активном Codex terminal |
+| `Shift+L` | Следующий Codex-чат в активном Codex terminal |
+| `:CodexNew [name]` | Создать новый Codex-чат с отдельным процессом |
+| `:CodexClose` | Остановить и закрыть активный Codex-чат |
+| `:CodexRename [name]` | Переименовать активный чат |
+| `:CodexPrev` / `:CodexNext` | Переключить предыдущий/следующий чат из командной строки |
+
+Первое открытие AI sidebar лениво запускает только один процесс Codex. Каждый новый чат получает собственный PTY и собственный scrollback.
+
+### Bottom terminal
+
+| Mapping | Действие |
+|---|---|
+| `Cmd+J` | Открыть и сфокусировать нижний terminal; повторное нажатие из него скрывает панель |
+| `Cmd+K` | Перейти в основной редактор, не закрывая terminal |
+| `Ctrl+D` | Завершить shell и автоматически закрыть нижнюю панель вместе с её buffer |
+| `:ProjectTerminalToggle` | Открыть/скрыть нижнюю панель командой |
+
+Bottom terminal независим от AI sidebar. В первой версии он содержит один shell process; для новых сессий после `Ctrl+D` панель создаёт новый shell при следующем открытии.
+
+### Файловое дерево
+
+| Mapping | Действие |
+|---|---|
+| `Cmd+B` | Закрытое дерево открыть и сфокусировать; из дерева снять фокус в редактор, оставив дерево открытым |
+| `Cmd+Shift+B` | Закрытое дерево открыть и сфокусировать; из сфокусированного дерева скрыть его |
+| `Ctrl+B` | Отключён |
+
+При выходе из AI sidebar или terminal фокусируется именно обычный editor pane, а не файловый навигатор.
+
+## Настройка терминального профиля
+
+Встроенные macOS-сочетания `Cmd` часто перехватываются iTerm2 или Ghostty. Поэтому терминальный профиль должен отправлять в Neovim уникальные escape sequences:
+
+| Клавиша | Sequence |
+|---|---|
+| `Cmd+L` | `ESC[99~` |
+| `Cmd+J` | `ESC[98~` |
+| `Cmd+K` | `ESC[101~` |
+| `Cmd+H` | `ESC[102~` |
+| `Cmd+B` | `ESC[103~` |
+| `Cmd+Shift+B` | `ESC[104~` |
+| `Shift+H` | `ESC[72;2u` |
+| `Shift+L` | `ESC[76;2u` |
+
+`Cmd+H` и `Shift+H/L` обрабатываются только в Codex terminal buffers. В обычных файлах стандартные Vim-команды `H` и `L` не изменены. Проверить пришедшую последовательность можно через `Ctrl+V` в Insert mode и `:verbose map`.
+
 ## Архитектура
 
 ```mermaid
@@ -37,10 +120,12 @@ flowchart TD
   I --> K["config.keymaps"]
   L --> M["lazy.nvim"]
   M --> P["lua/plugins/*"]
+  P --> D["nvim-drawer"]
   P --> UI["UI и навигация"]
   P --> CODE["Completion и LSP"]
-  P --> EDIT["Форматирование и syntax"]
-  P --> GIT["Git-интеграция"]
+  P --> EDIT["Форматирование и Treesitter"]
+  D --> AI["cododel.ai_sidebar"]
+  D --> FS["cododel.file_sidebar"]
 ```
 
 [init.lua](init.lua) загружает модули в следующем порядке:
@@ -60,7 +145,11 @@ flowchart TD
 │   │   ├── keymaps.lua
 │   │   ├── lazy.lua
 │   │   └── settings.lua
+│   ├── cododel
+│   │   ├── ai_sidebar.lua
+│   │   └── file_sidebar.lua
 │   └── plugins
+│       ├── ai-sidebar.lua
 │       ├── alpha-greeter.lua
 │       ├── cmp.lua
 │       ├── conform.lua
@@ -75,7 +164,7 @@ flowchart TD
 └── .luarc.json
 ```
 
-Каждый файл в `lua/plugins` возвращает plugin spec для `lazy.nvim`. Общие плагины и плагины без отдельной настройки собраны в `lua/plugins/init.lua`.
+Каждый файл в `lua/plugins` возвращает plugin spec для `lazy.nvim`. Общие плагины и плагины без отдельной настройки собраны в [lua/plugins/init.lua](lua/plugins/init.lua).
 
 ## Возможности
 
@@ -95,7 +184,7 @@ flowchart TD
 - `nvim-cmp` с источниками LSP, LuaSnip, Copilot, buffer и path.
 - LuaSnip с `friendly-snippets`.
 - `conform.nvim` для форматирования.
-- Treesitter с включённой подсветкой; автоматически устанавливается parser Python.
+- Treesitter с новой API-веткой `main` и автоматическим запуском подсветки для Lua, Python и Markdown.
 - Autopairs, autotag и surround.
 
 ### LSP
@@ -121,7 +210,7 @@ phpactor       ruff            basedpyright
 | JavaScript, TypeScript, Svelte | `prettier` |
 | CSS, HTML, JSON, YAML, Markdown | `prettier` |
 
-## Основные mappings
+## Обычные mappings
 
 `<leader>` — пробел.
 
@@ -133,7 +222,6 @@ phpactor       ruff            basedpyright
 | `F2` | LSP rename |
 | `gd`, `gr`, `gD` | Definition, references, declaration |
 | `K`, `<C-k>` | Hover и signature help |
-| `<C-b>` | Переключить NvimTree |
 | `H`, `L` | Предыдущий/следующий buffer |
 | `<leader>1..9` | Перейти к buffer по номеру |
 | `F1` | Очистить подсветку поиска |
@@ -153,7 +241,10 @@ phpactor       ruff            basedpyright
 
 ## Известные ограничения
 
-- Treesitter сейчас явно устанавливает только parser Python. Для других языков добавь их в `ensure_installed` в [lua/plugins/tree-sitter.lua](lua/plugins/tree-sitter.lua).
+- Процессы Codex и shell не восстанавливаются после перезапуска Neovim. В state-файле сохраняется только metadata чатов, но не `bufnr` и `job_id`.
+- В первой версии нет editor-context bridge, парсинга вывода Codex и отдельного AI-протокола через app-server.
+- Для установки Python parser нужен CLI `tree-sitter`. На macOS его можно установить через `brew install tree-sitter`, затем выполнить `:TSUpdate`.
+- Markdown parser поставляется с Treesitter; для других языков добавь их в [lua/plugins/tree-sitter.lua](lua/plugins/tree-sitter.lua).
 - Форматирование зависит от наличия `stylua`, `ruff` и `prettier` в `PATH`.
 - LSP не устанавливает серверы автоматически.
 - Настройка LSP использует legacy-интерфейс `nvim-lspconfig`; при переходе на новые версии Neovim её можно мигрировать на `vim.lsp.config()` и `vim.lsp.enable()`.

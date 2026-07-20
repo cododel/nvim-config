@@ -41,11 +41,11 @@ return {
           },
         },
       })
+      require("cododel.file_sidebar").setup()
     end,
   },
   "nvim-tree/nvim-web-devicons",
   "folke/trouble.nvim",
-  "nvim-treesitter/nvim-treesitter",
   "powerman/vim-plugin-ruscmd",
   "sindrets/winshift.nvim",
   "tpope/vim-repeat",

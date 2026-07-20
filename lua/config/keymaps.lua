@@ -46,6 +46,3 @@ map("n", "<F13>", ":g/^$/d<CR>", default_opts)
 
 -- <F5> Side numbers mode toggle
 map("n", "<F5>", ':exec &nu==&rnu? "se nu!" : "se rnu!"<CR>', default_opts)
-
--- <F6> files tree
-map("n", "<C-b>", ":NvimTreeRefresh<CR>:NvimTreeToggle<CR>", default_opts)
