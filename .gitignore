@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Neovim temporary files
+*.swp
+*.swo
+*.swn
+*~
+*.tmp
+.netrwhist
+
+# Neovim local state
+Session.vim
+session.vim
+shada/
+undo/
+backup/
+view/
