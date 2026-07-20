@@ -11,6 +11,7 @@ opt.termguicolors = true
 opt.swapfile = false
 opt.number = true
 opt.relativenumber = true
+opt.mousescroll = "ver:3,hor:0"
 
 -- Tabs
 opt.tabstop = 2
