@@ -154,7 +154,6 @@ flowchart TD
 │       ├── cmp.lua
 │       ├── conform.lua
 │       ├── gitsigns.lua
-│       ├── hydra.lua
 │       ├── init.lua
 │       ├── lspconfig.lua
 │       ├── lualine.lua
@@ -175,7 +174,6 @@ flowchart TD
 - Bufferline — навигация по открытым buffers.
 - NvimTree — файловое дерево с синхронизацией корня проекта и Git-иконками.
 - Telescope — поиск файлов, grep, buffers, history, keymaps и registers.
-- Hydra — режимы управления окнами и Telescope.
 - Alpha — стартовый экран.
 - Trouble и Undotree — диагностика и история изменений.
 
@@ -226,8 +224,6 @@ phpactor       ruff            basedpyright
 | `<leader>1..9` | Перейти к buffer по номеру |
 | `F1` | Очистить подсветку поиска |
 | `F5` | Переключить обычные и относительные номера строк |
-| `<C-w>` | Hydra для управления окнами |
-| `<F4>` | Hydra для Telescope |
 
 ## Обновление
 
