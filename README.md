@@ -62,10 +62,10 @@ flowchart LR
 
 | Mapping | Действие |
 |---|---|
-| `Cmd+H` | Из editor открыть/focus Files; из Files скрыть её; из боковой панели перейти в editor |
-| `Cmd+J` | Из editor открыть/focus bottom terminal; из terminal скрыть его и перейти в editor |
-| `Cmd+K` | Из bottom terminal перейти в editor; в остальных зонах не действует |
-| `Cmd+L` | Из editor открыть/focus AI; из AI скрыть его; из Files перейти в editor |
+| `Cmd+H` | Из editor открыть/focus Files; из Files скрыть её и перейти в editor; из terminal перейти в Files; из AI перейти в editor |
+| `Cmd+J` | Из editor, Files или AI открыть/focus terminal с запоминанием источника; из terminal скрыть его и вернуться к источнику |
+| `Cmd+K` | Из bottom terminal всегда перейти в editor, не скрывая terminal |
+| `Cmd+L` | Из editor открыть/focus AI; из AI скрыть его и перейти в editor; из Files перейти в editor; из terminal перейти в AI |
 
 Панель открывается, если она скрыта, получает фокус, если уже открыта, и скрывается при повторном нажатии из самой панели. Процессы и buffers при снятии фокуса не завершаются. Если editor pane отсутствует, fallback-фокусом становится файловое дерево.
 
@@ -140,6 +140,7 @@ flowchart TD
 
 ```text
 .
+├── AGENTS.md
 ├── init.lua
 ├── lazy-lock.json
 ├── lua
@@ -163,6 +164,10 @@ flowchart TD
 │       ├── theme.lua
 │       ├── tree-sitter.lua
 │       └── which-keys.lua
+├── tests
+│   ├── ai_sidebar_spec.lua
+│   ├── navigation_spec.lua
+│   └── run.sh
 └── .luarc.json
 ```
 
@@ -238,9 +243,21 @@ phpactor       ruff            basedpyright
 
 После изменения версий плагинов проверь и закоммить [lazy-lock.json](lazy-lock.json), чтобы сохранить воспроизводимое состояние.
 
+## Тесты
+
+Focused-тесты модулей запускаются без дополнительного test framework:
+
+```sh
+sh tests/run.sh
+```
+
+Тесты используют headless Neovim и проверяют directional navigation, возврат из bottom terminal к источнику и lifecycle нескольких Codex-сессий. Для изменения поведения используется RED → GREEN: сначала добавляется assertion, затем минимальная реализация.
+
+Проектные правила разработки собраны в [AGENTS.md](AGENTS.md).
+
 ## Известные ограничения
 
-- Процессы Codex и shell не восстанавливаются после перезапуска Neovim. В state-файле сохраняется только metadata чатов, но не `bufnr` и `job_id`.
+- Процессы Codex и shell не восстанавливаются после перезапуска Neovim; runtime-состояние живёт только внутри текущего процесса Neovim.
 - В первой версии нет editor-context bridge, парсинга вывода Codex и отдельного AI-протокола через app-server.
 - Для установки Python parser нужен CLI `tree-sitter`. На macOS его можно установить через `brew install tree-sitter`, затем выполнить `:TSUpdate`.
 - Markdown parser поставляется с Treesitter; для других языков добавь их в [lua/plugins/tree-sitter.lua](lua/plugins/tree-sitter.lua).

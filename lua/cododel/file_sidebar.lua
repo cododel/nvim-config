@@ -1,9 +1,5 @@
 local M = {}
 
-local state = {
-  initialized = false,
-}
-
 local function tree_window()
   local api = require("nvim-tree.api")
 
@@ -43,28 +39,10 @@ local function is_focused()
   return tree_window() == vim.api.nvim_get_current_win()
 end
 
-local function toggle_tree()
-  if is_focused() then
-    hide_tree()
-  else
-    focus_tree()
-  end
-end
-
 M.get_winid = tree_window
 M.is_open = is_open
 M.is_focused = is_focused
 M.focus = focus_tree
 M.hide = hide_tree
-M.toggle = toggle_tree
-M.focus_or_open = focus_tree
-
-function M.setup()
-  if state.initialized then
-    return
-  end
-
-  state.initialized = true
-end
 
 return M

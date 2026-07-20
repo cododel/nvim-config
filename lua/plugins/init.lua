@@ -41,7 +41,6 @@ return {
           },
         },
       })
-      require("cododel.file_sidebar").setup()
     end,
   },
   "nvim-tree/nvim-web-devicons",

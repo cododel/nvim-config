@@ -9,93 +9,30 @@ local DEFAULTS = {
 local runtime = {
   initialized = false,
   options = nil,
-  root = nil,
-  known_roots = {},
   pending_session_name = nil,
-  next_session_number = 1,
   ai = {
     active = 1,
     sessions = {},
   },
   bottom = {
     bufnr = nil,
-    job_id = nil,
-    status = "stopped",
-    cwd = nil,
   },
   ai_drawer = nil,
   bottom_drawer = nil,
 }
 
 M._state = runtime
+local scheduled_terminal_modes = {}
 
 local function project_root()
   local root = vim.fs.root(0, { ".git" })
   return root or vim.uv.cwd()
 end
 
-local function remember_root(root)
-  runtime.known_roots[root] = true
-end
-
-local function state_directory()
-  return vim.fs.normalize(vim.fn.stdpath("state") .. "/codex-sidebar")
-end
-
-local function state_path(root)
-  return state_directory() .. "/" .. vim.fn.sha256(root) .. ".json"
-end
-
-local function json_encode(value)
-  if vim.json and vim.json.encode then
-    return vim.json.encode(value)
-  end
-
-  return vim.fn.json_encode(value)
-end
-
-local function save_state(root)
-  local sessions = {}
-  local active_id = nil
-
-  for index, session in ipairs(runtime.ai.sessions) do
-    if session.cwd == root then
-      sessions[#sessions + 1] = {
-        id = session.id,
-        title = session.title,
-        status = session.status,
-        cwd = session.cwd,
-      }
-
-      if index == runtime.ai.active then
-        active_id = session.id
-      end
-    end
-  end
-
-  local payload = {
-    version = 1,
-    root = root,
-    ai = {
-      active_id = active_id,
-      sessions = sessions,
-    },
-  }
-
-  vim.fn.mkdir(state_directory(), "p")
-  vim.fn.writefile({ json_encode(payload) }, state_path(root))
-end
-
-local function save_all_states()
-  for root in pairs(runtime.known_roots) do
-    save_state(root)
-  end
-end
-
 local function session_for_buffer(bufnr)
-  for _, session in ipairs(runtime.ai.sessions) do
+  for index, session in ipairs(runtime.ai.sessions) do
     if session.bufnr == bufnr then
-      return session
+      return index
     end
   end
 end
@@ -123,9 +60,9 @@ local function session_status_icon(status)
 end
 
 local function update_ai_active(bufnr)
-  local session = session_for_buffer(bufnr)
-  if session then
-    runtime.ai.active = session_index(session)
+  local index = session_for_buffer(bufnr)
+  if index then
+    runtime.ai.active = index
   end
 end
 
@@ -175,7 +112,14 @@ local function scroll_to_bottom(winid)
 end
 
 local function enter_terminal_mode(winid)
+  if scheduled_terminal_modes[winid] then
+    return
+  end
+
+  scheduled_terminal_modes[winid] = true
   vim.schedule(function()
+    scheduled_terminal_modes[winid] = nil
+
     if not vim.api.nvim_win_is_valid(winid) then
       return
     end
@@ -184,16 +128,18 @@ local function enter_terminal_mode(winid)
       return
     end
 
-    vim.api.nvim_win_call(winid, function()
-      vim.cmd("startinsert")
-    end)
+    if vim.api.nvim_get_mode().mode ~= "t" then
+      vim.api.nvim_win_call(winid, function()
+        vim.cmd("startinsert")
+      end)
+    end
   end)
 end
 
-local function set_terminal_options(bufnr)
+local function set_terminal_options(bufnr, filetype)
   vim.bo[bufnr].buflisted = false
   vim.bo[bufnr].bufhidden = "hide"
-  vim.bo[bufnr].filetype = "codex_terminal"
+  vim.bo[bufnr].filetype = filetype
   vim.wo.number = false
   vim.wo.relativenumber = false
   vim.wo.signcolumn = "no"
@@ -201,13 +147,12 @@ local function set_terminal_options(bufnr)
 end
 
 local function set_bottom_options(bufnr)
-  vim.bo[bufnr].buflisted = false
-  vim.bo[bufnr].bufhidden = "hide"
-  vim.bo[bufnr].filetype = "project_terminal"
-  vim.wo.number = false
-  vim.wo.relativenumber = false
-  vim.wo.signcolumn = "no"
-  vim.wo.statuscolumn = ""
+  set_terminal_options(bufnr, "project_terminal")
+end
+
+local function prepare_terminal_window(event)
+  scroll_to_bottom(event.winid)
+  enter_terminal_mode(event.winid)
 end
 
 local function stop_job(job_id)
@@ -247,7 +192,6 @@ end
 
 local function create_codex_session(bufnr)
   local root = project_root()
-  remember_root(root)
 
   local title = runtime.pending_session_name
   runtime.pending_session_name = nil
@@ -256,14 +200,11 @@ local function create_codex_session(bufnr)
   end
 
   local session = {
-    id = string.format("session-%d", runtime.next_session_number),
     title = title,
     bufnr = bufnr,
     job_id = nil,
     status = "starting",
-    cwd = root,
   }
-  runtime.next_session_number = runtime.next_session_number + 1
 
   runtime.ai.sessions[#runtime.ai.sessions + 1] = session
   runtime.ai.active = #runtime.ai.sessions
@@ -307,31 +248,29 @@ local function create_codex_session(bufnr)
       local index = session_index(session)
       if index then
         table.remove(runtime.ai.sessions, index)
-        runtime.ai.active = math.min(runtime.ai.active, #runtime.ai.sessions)
-        if runtime.ai.active < 1 then
+        if index < runtime.ai.active then
+          runtime.ai.active = runtime.ai.active - 1
+        elseif index == runtime.ai.active then
+          runtime.ai.active = math.min(runtime.ai.active, #runtime.ai.sessions)
+        end
+
+        if #runtime.ai.sessions == 0 then
           runtime.ai.active = 1
         end
       end
       update_ai_winbar()
-      save_state(session.cwd)
     end,
   })
 
-  set_terminal_options(bufnr)
+  set_terminal_options(bufnr, "codex_terminal")
   terminal_keymaps(bufnr)
-  save_state(root)
 end
 
 local function create_bottom_terminal(bufnr)
   local root = project_root()
-  remember_root(root)
   runtime.bottom.bufnr = bufnr
-  runtime.bottom.cwd = root
-  runtime.bottom.status = "starting"
 
-  local job_id = vim.fn.termopen(vim.o.shell, { cwd = root })
-  runtime.bottom.job_id = job_id
-  runtime.bottom.status = job_id > 0 and "running" or "exited"
+  vim.fn.termopen(vim.o.shell, { cwd = root })
 
   local group = vim.api.nvim_create_augroup(
     "CodexSidebarBottomTerminal" .. bufnr,
@@ -341,9 +280,6 @@ local function create_bottom_terminal(bufnr)
     buffer = bufnr,
     group = group,
     callback = function()
-      runtime.bottom.status = "exited"
-      runtime.bottom.job_id = nil
-
       vim.schedule(function()
         if runtime.bottom.bufnr ~= bufnr then
           return
@@ -358,7 +294,6 @@ local function create_bottom_terminal(bufnr)
         end
 
         runtime.bottom.bufnr = nil
-        runtime.bottom.cwd = nil
       end)
     end,
   })
@@ -378,21 +313,16 @@ local function setup_drawers()
       create_codex_session(event.bufnr)
     end,
     on_did_open_buffer = function(event)
-      set_terminal_options(event.bufnr)
+      set_terminal_options(event.bufnr, "codex_terminal")
       terminal_keymaps(event.bufnr)
       update_ai_active(event.bufnr)
       update_ai_winbar()
-      scroll_to_bottom(event.winid)
-      enter_terminal_mode(event.winid)
+      prepare_terminal_window(event)
     end,
     on_did_open = function(event)
       update_ai_active(event.bufnr)
       update_ai_winbar()
-      scroll_to_bottom(event.winid)
-      enter_terminal_mode(event.winid)
-    end,
-    on_did_close = function()
-      save_all_states()
+      prepare_terminal_window(event)
     end,
   })
 
@@ -405,28 +335,15 @@ local function setup_drawers()
     end,
     on_did_open_buffer = function(event)
       set_bottom_options(event.bufnr)
-      scroll_to_bottom(event.winid)
-      enter_terminal_mode(event.winid)
+      prepare_terminal_window(event)
     end,
     on_did_open = function(event)
-      scroll_to_bottom(event.winid)
-      enter_terminal_mode(event.winid)
+      prepare_terminal_window(event)
     end,
   })
 end
 
-local function focus_or_toggle(drawer)
-  if drawer then
-    drawer.focus_or_toggle()
-
-    local winid = drawer.get_winid()
-    if winid ~= -1 and drawer.is_focused() then
-      enter_terminal_mode(winid)
-    end
-  end
-end
-
-local function normalize_bottom_height()
+local function normalize_bottom_layout()
   local drawer = runtime.bottom_drawer
   if not drawer then
     return
@@ -435,6 +352,15 @@ local function normalize_bottom_height()
   local winid = drawer.get_winid()
   if winid == -1 or not vim.api.nvim_win_is_valid(winid) then
     return
+  end
+
+  -- A below-split inherits the width of the window it was opened from. Move
+  -- it to the bottom of the root layout so it spans the whole editor, even
+  -- when the file or AI sidebar was opened first.
+  if vim.api.nvim_win_get_width(winid) < vim.o.columns then
+    pcall(vim.api.nvim_win_call, winid, function()
+      vim.cmd("wincmd J")
+    end)
   end
 
   local max_height = math.max(1, vim.o.lines - vim.o.cmdheight - 1)
@@ -467,7 +393,7 @@ local function focus_drawer(drawer)
   end
 
   if drawer == runtime.bottom_drawer then
-    vim.schedule(normalize_bottom_height)
+    vim.schedule(normalize_bottom_layout)
   end
 end
 
@@ -497,7 +423,7 @@ local function make_panel_controller(get_drawer)
     is_focused = function()
       return drawer_is_focused(get_drawer())
     end,
-    focus_or_open = function()
+    focus = function()
       focus_drawer(get_drawer())
     end,
     hide = function()
@@ -517,11 +443,6 @@ M.panels = {
     return runtime.bottom_drawer
   end),
 }
-
-local function toggle_bottom_terminal()
-  focus_or_toggle(runtime.bottom_drawer)
-  vim.schedule(normalize_bottom_height)
-end
 
 local function open_new_codex(name)
   runtime.pending_session_name = name and vim.trim(name) or nil
@@ -556,7 +477,6 @@ local function rename_active_codex(name)
 
     session.title = value
     update_ai_winbar()
-    save_state(session.cwd)
   end
 
   if name and vim.trim(name) ~= "" then
@@ -569,7 +489,7 @@ end
 
 local function create_commands()
   vim.api.nvim_create_user_command("CodexSidebarToggle", function()
-    focus_or_toggle(runtime.ai_drawer)
+    M.panels.ai.toggle()
   end, { desc = "Focus or toggle the Codex sidebar" })
 
   vim.api.nvim_create_user_command("CodexNew", function(command)
@@ -591,7 +511,7 @@ local function create_commands()
     desc = "Select the previous Codex session",
   })
   vim.api.nvim_create_user_command("ProjectTerminalToggle", function()
-    toggle_bottom_terminal()
+    require("cododel.navigation").toggle_bottom()
   end, { desc = "Focus or toggle the project terminal" })
 end
 
@@ -602,20 +522,12 @@ function M.setup(options)
 
   runtime.initialized = true
   runtime.options = vim.tbl_deep_extend("force", DEFAULTS, options or {})
-  runtime.root = project_root()
-  remember_root(runtime.root)
 
   setup_drawers()
   create_commands()
   require("cododel.navigation").setup({
     file_sidebar = require("cododel.file_sidebar"),
     panels = M.panels,
-  })
-
-  vim.api.nvim_create_autocmd("VimLeavePre", {
-    group = vim.api.nvim_create_augroup("CodexSidebarPersistence", { clear = true }),
-    callback = save_all_states,
-    desc = "Save Codex sidebar metadata",
   })
 end
 
