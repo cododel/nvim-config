@@ -7,12 +7,27 @@ return {
     "kyazdani42/nvim-tree.lua",
     dependencies = { "nvim-tree/nvim-web-devicons" },
     config = function()
+      local api = require("nvim-tree.api")
+
       require("nvim-tree").setup({
+        on_attach = function(bufnr)
+          api.config.mappings.default_on_attach(bufnr)
+          vim.keymap.set("n", "<D-S-.>", api.tree.toggle_hidden_filter, {
+            buffer = bufnr,
+            desc = "nvim-tree: Toggle Filter: Dotfiles",
+            noremap = true,
+            silent = true,
+            nowait = true,
+          })
+        end,
         sync_root_with_cwd = true,
         respect_buf_cwd = true,
         update_focused_file = {
           enable = true,
           update_root = true,
+        },
+        filters = {
+          custom = { "^\\.git$" },
         },
         renderer = {
           highlight_git = true,
