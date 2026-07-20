@@ -55,6 +55,12 @@ assert(
   "file search excludes binary extensions"
 )
 
+mapping("<D-F>")()
+assert(calls[2].name == "live_grep", "Cmd+Shift+F opens project content search")
+assert(calls[2].opts.layout_strategy == "center", "content search uses the palette popup")
+mapping("<Esc>[113~", "t")()
+assert(calls[3].name == "live_grep", "terminal CSI Cmd+Shift+F opens content search")
+
 local picker_mappings = {}
 local map = function(mode, lhs, rhs, opts)
   picker_mappings[mode .. lhs] = {
@@ -74,10 +80,10 @@ assert(picker_mappings["ijj"].callback ~= require("telescope.actions").close, "j
 assert(picker_mappings["i<Esc>"].opts.nowait == true, "Escape does not wait for a terminal sequence")
 picker_mappings["i<C-g>"].callback()
 vim.wait(100, function()
-  return #calls >= 2
+  return #calls >= 4
 end)
 
-assert(calls[2].name == "live_grep", "Ctrl+G switches to live grep")
-assert(calls[2].opts.prompt_title == "Grep project", "grep mode has a visible title")
+assert(calls[4].name == "live_grep", "Ctrl+G switches to live grep")
+assert(calls[4].opts.prompt_title == "Grep project", "grep mode has a visible title")
 
 print("palette_spec: ok")
