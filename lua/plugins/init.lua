@@ -8,10 +8,12 @@ return {
     dependencies = { "nvim-tree/nvim-web-devicons" },
     config = function()
       local api = require("nvim-tree.api")
+      local file_sidebar = require("cododel.file_sidebar")
 
       require("nvim-tree").setup({
         on_attach = function(bufnr)
           api.config.mappings.default_on_attach(bufnr)
+          file_sidebar.on_attach(bufnr)
           vim.keymap.set("n", "<D-S-.>", api.tree.toggle_hidden_filter, {
             buffer = bufnr,
             desc = "nvim-tree: Toggle Filter: Dotfiles",

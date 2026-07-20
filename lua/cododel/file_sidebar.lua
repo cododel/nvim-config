@@ -1,5 +1,28 @@
 local M = {}
 
+local function mapping_options(bufnr, description)
+  return {
+    buffer = bufnr,
+    desc = "file sidebar: " .. description,
+    noremap = true,
+    silent = true,
+    nowait = true,
+  }
+end
+
+function M.on_attach(bufnr)
+  local api = require("nvim-tree.api")
+
+  vim.keymap.set("n", "h", api.node.navigate.parent_close, mapping_options(bufnr, "Collapse"))
+  vim.keymap.set("n", "l", api.node.open.edit, mapping_options(bufnr, "Expand or open"))
+  vim.keymap.set(
+    "n",
+    "<CR>",
+    api.tree.change_root_to_node,
+    mapping_options(bufnr, "Enter directory as root")
+  )
+end
+
 local function tree_window()
   local api = require("nvim-tree.api")
 
