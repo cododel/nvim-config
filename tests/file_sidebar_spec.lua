@@ -66,7 +66,8 @@ assert(calls.recursive_expand == nil, "l does not recursively expand the directo
 
 current_node = { type = "file", absolute_path = "/tmp/project/README.md" }
 mapping("l")()
-assert(calls.expand == 2, "l does not open files")
+assert(calls.preview == current_node, "l previews the selected file")
+assert(calls.expand == 2, "l does not expand a selected file")
 
 current_node = directory
 mapping("<CR>")()

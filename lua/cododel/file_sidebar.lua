@@ -10,12 +10,14 @@ local function mapping_options(bufnr, description)
   }
 end
 
-local function expand_directory()
+local function expand_or_preview()
   local api = require("nvim-tree.api")
   local node = api.tree.get_node_under_cursor()
 
-  if node and node.nodes then
+  if node and (node.type == "directory" or node.nodes ~= nil) then
     api.node.open.edit(node)
+  elseif node then
+    api.node.open.preview(node)
   end
 end
 
@@ -53,7 +55,7 @@ function M.on_attach(bufnr)
   local api = require("nvim-tree.api")
 
   vim.keymap.set("n", "h", api.node.navigate.parent_close, mapping_options(bufnr, "Collapse"))
-  vim.keymap.set("n", "l", expand_directory, mapping_options(bufnr, "Expand directory"))
+  vim.keymap.set("n", "l", expand_or_preview, mapping_options(bufnr, "Expand directory or preview file"))
   vim.keymap.set(
     "n",
     "<CR>",
