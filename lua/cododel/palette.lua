@@ -148,6 +148,8 @@ local function attach_mappings(_, map)
 
   map("i", "<Tab>", actions.move_selection_next, immediate)
   map("n", "<Tab>", actions.move_selection_next, immediate)
+  map("i", "<S-Tab>", actions.move_selection_previous, immediate)
+  map("n", "<S-Tab>", actions.move_selection_previous, immediate)
   map("i", "<Esc>", actions.close, immediate)
   map("i", "<C-[>", actions.close, immediate)
   map("i", "jj", insert_literal_jj, immediate)

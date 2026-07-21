@@ -19,6 +19,7 @@ package.preload["telescope.actions"] = function()
   return {
     close = function() end,
     move_selection_next = function() end,
+    move_selection_previous = function() end,
   }
 end
 
@@ -73,6 +74,8 @@ local attach_mappings = calls[1].opts.attach_mappings
 assert(attach_mappings(101, map) == true, "palette keeps Telescope mappings")
 assert(picker_mappings["i<Tab>"].callback == require("telescope.actions").move_selection_next, "Tab moves without selecting multiple files")
 assert(picker_mappings["n<Tab>"].callback == require("telescope.actions").move_selection_next, "Normal-mode Tab moves without selecting multiple files")
+assert(picker_mappings["i<S-Tab>"].callback == require("telescope.actions").move_selection_previous, "Shift+Tab moves up without selecting multiple files")
+assert(picker_mappings["n<S-Tab>"].callback == require("telescope.actions").move_selection_previous, "Normal-mode Shift+Tab moves up without selecting multiple files")
 assert(picker_mappings["i<Esc>"].callback == require("telescope.actions").close, "Escape closes the palette from insert mode")
 assert(picker_mappings["i<C-[>"].callback == require("telescope.actions").close, "Ctrl-[ closes the palette")
 assert(type(picker_mappings["ijj"].callback) == "function", "jj remains available as search input")

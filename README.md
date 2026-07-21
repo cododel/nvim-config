@@ -142,7 +142,7 @@ Bottom terminal независим от AI sidebar. В первой версии
 
 То же самое можно открыть командами `:CododelFiles`, `:CododelGrep`, `:CododelBuffers`, `:CododelRecent`, `:CododelCommands` и `:CododelKeymaps`. `:CododelPalette` — alias для поиска файлов.
 
-В palette `Tab` только перемещает выбор вниз, `↑/↓` перемещают выбор по результатам, а `Esc` сразу закрывает popup. `Ctrl-[` также закрывает palette, не переводя её в Normal mode; `jj` остаётся обычным вводом в поиск. Multi-selection отключён.
+В palette `Tab` только перемещает выбор вниз, а `Shift+Tab` — вверх; `↑/↓` также перемещают выбор по результатам. `Esc` сразу закрывает popup. `Ctrl-[` также закрывает palette, не переводя её в Normal mode; `jj` остаётся обычным вводом в поиск. Multi-selection отключён.
 
 Новых fuzzy-search зависимостей для панели не добавляется: `telescope.nvim` и `plenary.nvim` уже входят в конфигурацию и lock-файл. Поиск файлов использует `rg --files`, явно исключает `.git` и распространённые бинарные форматы. Для режима grep также нужен внешний `rg` в `PATH`.
 
