@@ -54,6 +54,7 @@ git diff --check
 - `Cmd+J`: открыть или сфокусировать bottom terminal, запомнив источник; повторно скрыть и вернуться к источнику.
 - `Cmd+K`: из bottom terminal перейти в editor, не скрывая terminal.
 - `Shift+H/L` buffer-local и переключают только Codex tabs.
+- `Shift+Esc`: maximize текущего pane в float с минимальным отступом; повторно — закрыть float и вернуть фокус в исходный pane.
 - При переходе из Files в AI выбранная директория запускает новую Codex-сессию напрямую, а выбранный файл — из parent directory; остальные входы используют git-root fallback.
 
 При изменении этого контракта одновременно обновляются `navigation.lua`, focused-тесты и README.

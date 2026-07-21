@@ -29,6 +29,10 @@ nvim --headless -n -i NONE -u NONE \
   "+qa!"
 
 nvim --headless -n -i NONE -u NONE \
+  "+luafile $repo_dir/tests/maximize_spec.lua" \
+  "+qa!"
+
+nvim --headless -n -i NONE -u NONE \
   "+luafile $repo_dir/tests/lualine_spec.lua" \
   "+qa!"
 

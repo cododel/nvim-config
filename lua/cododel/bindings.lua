@@ -112,6 +112,10 @@ M.shortcuts = {
     russian = "<D-Ю>",
     terminal = "<Esc>[114~",
   },
+  maximize_pane = {
+    latin = "<S-Esc>",
+    terminal = "<Esc>[27;2u",
+  },
 }
 
 local command_aliases = {

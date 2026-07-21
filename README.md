@@ -56,7 +56,7 @@ flowchart LR
 - NvimTree отвечает только за файловую навигацию.
 - Снятие фокуса с панели не закрывает её и не останавливает процесс.
 
-Модули workspace изолированы в [lua/cododel/ai_sidebar.lua](lua/cododel/ai_sidebar.lua), [lua/cododel/file_sidebar.lua](lua/cododel/file_sidebar.lua), [lua/cododel/navigation.lua](lua/cododel/navigation.lua), [lua/cododel/palette.lua](lua/cododel/palette.lua) и [lua/cododel/bindings.lua](lua/cododel/bindings.lua). Они не меняют lifecycle LSP, statusline или обычных терминалов.
+Модули workspace изолированы в [lua/cododel/ai_sidebar.lua](lua/cododel/ai_sidebar.lua), [lua/cododel/file_sidebar.lua](lua/cododel/file_sidebar.lua), [lua/cododel/navigation.lua](lua/cododel/navigation.lua), [lua/cododel/maximize.lua](lua/cododel/maximize.lua), [lua/cododel/palette.lua](lua/cododel/palette.lua) и [lua/cododel/bindings.lua](lua/cododel/bindings.lua). Они не меняют lifecycle LSP, statusline или обычных терминалов.
 
 ## Управление панелями
 
@@ -70,6 +70,7 @@ flowchart LR
 | `Cmd+L` | Из editor открыть/focus AI; из AI скрыть его и перейти в editor; из Files перейти в editor, а при его отсутствии — в AI; из terminal перейти в AI |
 | `Cmd+P` | Открыть floating-поиск файлов; режимы picker переключаются прямо в popup |
 | `Cmd+Shift+F` | Открыть floating-поиск по содержимому проекта через `rg` |
+| `Shift+Esc` | Maximize текущего pane (editor / Files / AI / terminal) в float с отступом 1 cell; повторно — закрыть float и вернуть фокус |
 
 Панель открывается, если она скрыта, получает фокус, если уже открыта, и скрывается при повторном нажатии из самой панели. Процессы и buffers при снятии фокуса не завершаются. Если editor pane отсутствует, fallback-фокусом становится файловое дерево.
 
@@ -127,6 +128,7 @@ Bottom terminal независим от AI sidebar. В первой версии
 | `Cmd+Shift+.` | `ESC[114~` |
 | `Shift+H` | `ESC[72;2u` |
 | `Shift+L` | `ESC[76;2u` |
+| `Shift+Esc` | `ESC[27;2u` |
 
 `Cmd+H/J/K/L` обрабатываются navigation controller во всех нужных режимах, а `Shift+H/L` остаются buffer-local только в Codex terminal buffers. В обычных файлах стандартные Vim-команды `H` и `L` не изменены. Проверить пришедшую последовательность можно через `Ctrl+V` в Insert mode и `:verbose map`.
 
@@ -140,6 +142,7 @@ keybind = super+key_l=csi:99~
 keybind = super+key_p=csi:112~
 keybind = super+shift+key_f=csi:113~
 keybind = super+shift+period=csi:114~
+keybind = shift+escape=csi:27;2u
 ```
 
 После изменения конфигурацию можно проверить командой `ghostty +validate-config --config-file "$HOME/Library/Application Support/com.mitchellh.ghostty/config.ghostty"`, а применить без перезапуска через `Cmd+Shift+,`. Не добавляем глобальные физические `Shift+H/L`: в Terminal mode заглавные русские буквы должны оставаться текстом, а переключение Codex tabs работает только в Normal mode и buffer-local.

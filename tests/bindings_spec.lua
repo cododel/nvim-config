@@ -34,4 +34,9 @@ local aliases = bindings.aliases({
 assert(#aliases == 3, "binding aliases are deduplicated")
 assert(bindings.shortcuts.file_palette.russian == "<D-з>", "file palette has a Russian alias")
 
+local maximize_aliases = bindings.aliases(bindings.shortcuts.maximize_pane)
+assert(#maximize_aliases == 2, "maximize pane exposes latin and terminal aliases")
+assert(maximize_aliases[1] == "<S-Esc>", "maximize pane latin alias is Shift+Esc")
+assert(maximize_aliases[2] == "<Esc>[27;2u", "maximize pane terminal alias is CSI-u Shift+Esc")
+
 print("bindings_spec: ok")
