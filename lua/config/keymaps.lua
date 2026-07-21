@@ -1,4 +1,7 @@
-local map = vim.api.nvim_set_keymap
+local bindings = require("cododel.bindings")
+bindings.setup()
+
+local map = vim.keymap.set
 local default_opts = { noremap = true, silent = true }
 local cmd = vim.cmd -- execute Vim commands
 
@@ -15,15 +18,15 @@ map("n", "<S-P>", '"+p', {})
 -- Автоформат + сохранение по CTRL-s , как в нормальном, так и в insert режиме
 local conform = "lua require('conform').format({async=false, lsp_fallback=true})"
 local lsp_buf = "<Cmd>lua vim.lsp.buf"
-map("n", "<C-s>", "<Cmd>" .. conform .. "<CR>:w<CR>", default_opts)
-map("i", "<C-s>", "<Esc><Cmd>" .. conform .. "<CR>:w<CR>", default_opts)
+bindings.set("n", { latin = "<C-s>", russian = "<C-ы>" }, "<Cmd>" .. conform .. "<CR>:w<CR>", default_opts)
+bindings.set("i", { latin = "<C-s>", russian = "<C-ы>" }, "<Esc><Cmd>" .. conform .. "<CR>:w<CR>", default_opts)
+bindings.set("n", { latin = "<C-k>", russian = "<C-л>" }, lsp_buf .. ".signature_help()<CR>", default_opts)
 map("n", "<F2>", lsp_buf .. ".rename()<CR>", default_opts)
 
 map('n', 'gd', lsp_buf .. ".definition()<CR>", default_opts)
 map('n', 'gr', lsp_buf .. ".references()<CR>", default_opts)
 map('n', 'gD', lsp_buf .. ".declaration()<CR>", default_opts)
 map('n', 'K', lsp_buf .. ".hover()<CR>", default_opts)
-map('n', '<C-k>', lsp_buf .. ".signature_help()<CR>", default_opts)
 
 -- Bufferline
 map("n", "<Leader>1", "<Cmd>BufferLineGoToBuffer 1<CR>", default_opts)
@@ -38,18 +41,6 @@ map("n", "<Leader>9", "<Cmd>BufferLineGoToBuffer 9<CR>", default_opts)
 map("n", "<Leader>$", "<Cmd>BufferLineGoToBuffer -1<CR>", default_opts)
 map("n", "H", "<Cmd>BufferLineCyclePrev<CR>", default_opts)
 map("n", "L", "<Cmd>BufferLineCycleNext<CR>", default_opts)
-
--- Keep Vim motions available when the keyboard layout is Russian.
-for _, mode in ipairs({ "n", "x", "o" }) do
-  map(mode, "р", "h", default_opts)
-  map(mode, "о", "j", default_opts)
-  map(mode, "л", "k", default_opts)
-  map(mode, "д", "l", default_opts)
-  map(mode, "Р", "H", default_opts)
-  map(mode, "О", "J", default_opts)
-  map(mode, "Л", "K", default_opts)
-  map(mode, "Д", "L", default_opts)
-end
 
 -- By F1 clear the last search with highlighting
 map("n", "<F1>", ":nohl<CR>", default_opts)

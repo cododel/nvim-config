@@ -28,7 +28,6 @@
   "tokyonight.nvim": { "branch": "main", "commit": "cdc07ac78467a233fd62c493de29a17e0cf2b2b6" },
   "trouble.nvim": { "branch": "main", "commit": "bd67efe408d4816e25e8491cc5ad4088e708a69a" },
   "undotree": { "branch": "master", "commit": "178d19e00a643f825ea11d581b1684745d0c4eda" },
-  "vim-plugin-ruscmd": { "branch": "master", "commit": "b4c6cf0b4ff76641d84c2ea1e90ab258f8ff7415" },
   "vim-repeat": { "branch": "master", "commit": "65846025c15494983dafe5e3b46c8f88ab2e9635" },
   "which-key.nvim": { "branch": "main", "commit": "3aab2147e74890957785941f0c1ad87d0a44c15a" },
   "winshift.nvim": { "branch": "main", "commit": "37468ed6f385dfb50402368669766504c0e15583" }

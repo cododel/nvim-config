@@ -68,8 +68,8 @@ navigation.setup({
   panels = { ai = ai, bottom = bottom },
 })
 
-local function mapping(lhs)
-  for _, item in ipairs(vim.api.nvim_get_keymap("n")) do
+local function mapping(lhs, mode)
+  for _, item in ipairs(vim.api.nvim_get_keymap(mode or "n")) do
     if item.lhs == lhs then
       return item.callback
     end
@@ -81,6 +81,13 @@ local h = mapping("<D-h>")
 local j = mapping("<D-j>")
 local k = mapping("<D-k>")
 local l = mapping("<D-l>")
+
+for _, mode in ipairs({ "n", "i", "t" }) do
+  assert(mapping("<D-р>", mode) == h, "Cmd+р follows Cmd+H in " .. mode)
+  assert(mapping("<D-о>", mode) == j, "Cmd+о follows Cmd+J in " .. mode)
+  assert(mapping("<D-л>", mode) == k, "Cmd+л follows Cmd+K in " .. mode)
+  assert(mapping("<D-д>", mode) == l, "Cmd+д follows Cmd+L in " .. mode)
+end
 
 local function assert_current(win, message)
   assert(vim.api.nvim_get_current_win() == win, message)
@@ -121,5 +128,11 @@ j()
 assert_current(bottom_win, "editor -> bottom again")
 k()
 assert_current(editor_win, "cmd+k from bottom -> editor")
+
+vim.bo[editor_buf].buftype = "nofile"
+files.focus()
+l()
+assert_current(ai.win, "files -> ai when no editor window exists")
+assert(ai_cwd == "/tmp/project/src", "files selection is passed to AI without an editor")
 
 print("navigation_spec: ok")

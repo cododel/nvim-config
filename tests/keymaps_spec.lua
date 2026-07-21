@@ -23,5 +23,7 @@ end
 
 assert(vim.fn.maparg("р", "i") == "", "Russian motion keys do not affect insert mode")
 assert(vim.fn.maparg("р", "t") == "", "Russian motion keys do not affect terminal mode")
+assert(vim.fn.maparg("<C-ы>", "n") == vim.fn.maparg("<C-s>", "n"), "Russian Ctrl+Ы follows Ctrl+S")
+assert(vim.fn.maparg("<C-л>", "n") == vim.fn.maparg("<C-k>", "n"), "Russian Ctrl+Л follows Ctrl+K")
 
 print("keymaps_spec: ok")

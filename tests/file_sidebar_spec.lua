@@ -43,6 +43,7 @@ end
 
 local file_sidebar = dofile(vim.fn.getcwd() .. "/lua/cododel/file_sidebar.lua")
 file_sidebar.on_attach(0)
+dofile(vim.fn.getcwd() .. "/lua/cododel/bindings.lua").setup()
 
 local function mapping(lhs)
   for _, item in ipairs(vim.api.nvim_buf_get_keymap(0, "n")) do
@@ -92,5 +93,11 @@ assert(
 
 current_node = nil
 assert(file_sidebar.get_ai_cwd() == nil, "missing tree node keeps the AI cwd unset")
+
+current_node = directory
+local expanded_before_russian_l = calls.expand
+vim.api.nvim_feedkeys("д", "xt", false)
+vim.wait(20)
+assert(calls.expand == expanded_before_russian_l + 1, "Russian л reaches the local NvimTree l mapping")
 
 print("file_sidebar_spec: ok")

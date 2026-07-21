@@ -56,7 +56,7 @@ flowchart LR
 - NvimTree отвечает только за файловую навигацию.
 - Снятие фокуса с панели не закрывает её и не останавливает процесс.
 
-Модули workspace изолированы в [lua/cododel/ai_sidebar.lua](lua/cododel/ai_sidebar.lua), [lua/cododel/file_sidebar.lua](lua/cododel/file_sidebar.lua), [lua/cododel/navigation.lua](lua/cododel/navigation.lua) и [lua/cododel/palette.lua](lua/cododel/palette.lua). Они не меняют lifecycle LSP, completion, statusline или обычных терминалов.
+Модули workspace изолированы в [lua/cododel/ai_sidebar.lua](lua/cododel/ai_sidebar.lua), [lua/cododel/file_sidebar.lua](lua/cododel/file_sidebar.lua), [lua/cododel/navigation.lua](lua/cododel/navigation.lua), [lua/cododel/palette.lua](lua/cododel/palette.lua) и [lua/cododel/bindings.lua](lua/cododel/bindings.lua). Они не меняют lifecycle LSP, statusline или обычных терминалов.
 
 ## Управление панелями
 
@@ -67,7 +67,7 @@ flowchart LR
 | `Cmd+H` | Из editor открыть/focus Files; из Files скрыть её и перейти в editor; из terminal перейти в Files; из AI перейти в editor |
 | `Cmd+J` | Из editor, Files или AI открыть/focus terminal с запоминанием источника; из terminal скрыть его и вернуться к источнику |
 | `Cmd+K` | Из bottom terminal всегда перейти в editor, не скрывая terminal |
-| `Cmd+L` | Из editor открыть/focus AI; из AI скрыть его и перейти в editor; из Files перейти в editor; из terminal перейти в AI |
+| `Cmd+L` | Из editor открыть/focus AI; из AI скрыть его и перейти в editor; из Files перейти в editor, а при его отсутствии — в AI; из terminal перейти в AI |
 | `Cmd+P` | Открыть floating-поиск файлов; режимы picker переключаются прямо в popup |
 | `Cmd+Shift+F` | Открыть floating-поиск по содержимому проекта через `rg` |
 
@@ -77,7 +77,9 @@ flowchart LR
 
 ### Русская раскладка
 
-В Normal, Visual и Operator-pending mode поддерживаются `ролд → hjkl` и `РОЛД → HJKL`. Маппинги не действуют в Insert и Terminal mode, поэтому не меняют ввод текста и команд в shell/Codex.
+Русская раскладка описана централизованно в `cododel.bindings` по фактической macOS-таблице физических клавиш. В Normal, Visual, Select и Operator-pending mode она переводит русские команды обратно в Latin equivalents: например, `ролд → hjkl`, `РОЛД → HJKL`, `з → p`, `а → f`, `Ю → >`. Это покрывает не только навигацию, но и стандартные Vim-команды, plugin mappings и buffer-local mappings NvimTree/Codex.
+
+Перевод намеренно не включается в Insert и Terminal mode: русская печать и команды shell/Codex должны оставаться обычным текстом. Для Cmd-shortcuts Neovim получает отдельные алиасы: `Cmd+Р/О/Л/Д`, `Cmd+З` и `Cmd+Shift+А`; основной слой для Ghostty — физические key bindings ниже. Русские Ex-команды `:ив`, `:ит`, `:й`, `:йф`, `:ц`, `:цй` и `:цйф` сохранены как безопасные command-line aliases.
 
 ### AI sidebar
 
@@ -122,10 +124,25 @@ Bottom terminal независим от AI sidebar. В первой версии
 | `Cmd+L` | `ESC[99~` |
 | `Cmd+P` | `ESC[112~` |
 | `Cmd+Shift+F` | `ESC[113~` |
+| `Cmd+Shift+.` | `ESC[114~` |
 | `Shift+H` | `ESC[72;2u` |
 | `Shift+L` | `ESC[76;2u` |
 
 `Cmd+H/J/K/L` обрабатываются navigation controller во всех нужных режимах, а `Shift+H/L` остаются buffer-local только в Codex terminal buffers. В обычных файлах стандартные Vim-команды `H` и `L` не изменены. Проверить пришедшую последовательность можно через `Ctrl+V` в Insert mode и `:verbose map`.
+
+Для Ghostty 1.3+ рекомендуется использовать физические `key_*` bindings, чтобы Cmd-сочетания не зависели от активной раскладки. Файл macOS: `~/Library/Application Support/com.mitchellh.ghostty/config.ghostty`.
+
+```ini
+keybind = super+key_h=csi:102~
+keybind = super+key_j=csi:98~
+keybind = super+key_k=csi:101~
+keybind = super+key_l=csi:99~
+keybind = super+key_p=csi:112~
+keybind = super+shift+key_f=csi:113~
+keybind = super+shift+period=csi:114~
+```
+
+После изменения конфигурацию можно проверить командой `ghostty +validate-config --config-file "$HOME/Library/Application Support/com.mitchellh.ghostty/config.ghostty"`, а применить без перезапуска через `Cmd+Shift+,`. Не добавляем глобальные физические `Shift+H/L`: в Terminal mode заглавные русские буквы должны оставаться текстом, а переключение Codex tabs работает только в Normal mode и buffer-local.
 
 ### Floating palette
 
@@ -139,6 +156,8 @@ Bottom terminal независим от AI sidebar. В первой версии
 | `Ctrl+O` | Недавно открытые файлы |
 | `Ctrl+;` | Команды Neovim |
 | `Ctrl+Y` | Keymaps |
+
+Внутренние `Ctrl+G/B/O/;/Y` также имеют русские алиасы, поэтому переключение режимов не зависит от текущей раскладки.
 
 То же самое можно открыть командами `:CododelFiles`, `:CododelGrep`, `:CododelBuffers`, `:CododelRecent`, `:CododelCommands` и `:CododelKeymaps`. `:CododelPalette` — alias для поиска файлов.
 
@@ -187,7 +206,8 @@ flowchart TD
 │   │   ├── ai_sidebar.lua
 │   │   ├── file_sidebar.lua
 │   │   ├── navigation.lua
-│   │   └── palette.lua
+│   │   ├── palette.lua
+│   │   └── bindings.lua
 │   └── plugins
 │       ├── ai-sidebar.lua
 │       ├── alpha-greeter.lua
@@ -201,6 +221,7 @@ flowchart TD
 │       ├── tree-sitter.lua
 │       └── which-keys.lua
 ├── tests
+│   ├── bindings_spec.lua
 │   ├── ai_sidebar_spec.lua
 │   ├── navigation_spec.lua
 │   └── run.sh

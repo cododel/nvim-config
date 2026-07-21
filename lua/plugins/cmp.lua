@@ -26,6 +26,7 @@ return {
     local cmp = require("cmp")         -- The complete engine
     local luasnip = require("luasnip") -- The snippet engine
     local compare = require("cmp.config.compare")
+    local bindings = require("cododel.bindings")
 
     -- Use buffer source for `/` and `?` (if you enabled `native_menu`, this won't work anymore).
     cmp.setup.cmdline({ '/', '?' }, {
@@ -54,23 +55,26 @@ return {
           luasnip.lsp_expand(args.body)
         end,
       },
-      mapping = {
-        -- -- Navigate the dropdown list snippet
-        ["<C-p>"] = cmp.mapping.select_prev_item(),
-        ["<C-n>"] = cmp.mapping.select_next_item(),
-        ["<C-d>"] = cmp.mapping.scroll_docs(-4),
-        ["<C-f>"] = cmp.mapping.scroll_docs(4),
-        ["<C-Space>"] = cmp.mapping.complete(),
-        -- ["<C-e>"] = cmp.mapping.close(),
+      mapping = (function()
+        local mapping = {}
+
+        -- Keep completion controls available when macOS sends the translated
+        -- Cyrillic character for a Ctrl+letter combination.
+        bindings.add(mapping, { latin = "<C-p>", russian = "<C-з>" }, cmp.mapping.select_prev_item())
+        bindings.add(mapping, { latin = "<C-n>", russian = "<C-т>" }, cmp.mapping.select_next_item())
+        bindings.add(mapping, { latin = "<C-d>", russian = "<C-в>" }, cmp.mapping.scroll_docs(-4))
+        bindings.add(mapping, { latin = "<C-f>", russian = "<C-а>" }, cmp.mapping.scroll_docs(4))
+
+        mapping["<C-Space>"] = cmp.mapping.complete()
 
         -- Enter select the item
-        ["<CR>"] = cmp.mapping.confirm({
+        mapping["<CR>"] = cmp.mapping.confirm({
           behavior = cmp.ConfirmBehavior.Replace,
           select = true,
-        }),
+        })
 
         -- Use <Tab> as the automplete trigger
-        ["<Tab>"] = function(fallback)
+        mapping["<Tab>"] = function(fallback)
           if cmp.visible() then
             cmp.select_next_item()
           elseif luasnip.expand_or_jumpable() then
@@ -78,8 +82,8 @@ return {
           else
             fallback()
           end
-        end,
-        ["<S-Tab>"] = function(fallback)
+        end
+        mapping["<S-Tab>"] = function(fallback)
           if cmp.visible() then
             cmp.select_prev_item()
           elseif luasnip.jumpable(-1) then
@@ -87,8 +91,10 @@ return {
           else
             fallback()
           end
-        end,
-      },
+        end
+
+        return mapping
+      end)(),
 
       -- Where to look for auto-complete items.
       sources = {

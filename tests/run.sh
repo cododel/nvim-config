@@ -13,6 +13,10 @@ nvim --headless -n -i NONE -u NONE \
   "+qa!"
 
 nvim --headless -n -i NONE -u NONE \
+  "+luafile $repo_dir/tests/bindings_spec.lua" \
+  "+qa!"
+
+nvim --headless -n -i NONE -u NONE \
   "+luafile $repo_dir/tests/ai_sidebar_spec.lua" \
   "+qa!"
 

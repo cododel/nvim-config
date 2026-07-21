@@ -1,4 +1,5 @@
 local M = {}
+local bindings = require("cododel.bindings")
 
 local state = {
   initialized = false,
@@ -39,6 +40,15 @@ local mode_keys = {
   ["<C-o>"] = "recent",
   ["<C-;>"] = "commands",
   ["<C-y>"] = "keymaps",
+}
+
+local mode_key_specs = {
+  ["<C-1>"] = { latin = "<C-1>" },
+  ["<C-g>"] = { latin = "<C-g>", russian = "<C-п>" },
+  ["<C-b>"] = { latin = "<C-b>", russian = "<C-и>" },
+  ["<C-o>"] = { latin = "<C-o>", russian = "<C-щ>" },
+  ["<C-;>"] = { latin = "<C-;>", russian = "<C-ж>" },
+  ["<C-y>"] = { latin = "<C-y>", russian = "<C-н>" },
 }
 
 local binary_extensions = {
@@ -155,12 +165,15 @@ local function attach_mappings(_, map)
   map("i", "jj", insert_literal_jj, immediate)
 
   for lhs, mode in pairs(mode_keys) do
-    map("i", lhs, function(prompt_bufnr)
-      switch_mode(prompt_bufnr, mode)
-    end)
-    map("n", lhs, function(prompt_bufnr)
-      switch_mode(prompt_bufnr, mode)
-    end)
+    local spec = mode_key_specs[lhs] or { latin = lhs }
+    for _, alias in ipairs(bindings.aliases(spec)) do
+      map("i", alias, function(prompt_bufnr)
+        switch_mode(prompt_bufnr, mode)
+      end)
+      map("n", alias, function(prompt_bufnr)
+        switch_mode(prompt_bufnr, mode)
+      end)
+    end
   end
 
   return true
@@ -229,20 +242,20 @@ function M.setup(options)
     M.open("grep")
   end
 
-  vim.keymap.set({ "n", "i", "t" }, "<D-p>", open_files, keymap_options)
-  vim.keymap.set({ "n", "i", "t" }, "<Esc>[112~", open_files, keymap_options)
-  vim.keymap.set({ "n", "i", "t" }, "<D-F>", open_grep, {
+  for _, lhs in ipairs(bindings.aliases(bindings.shortcuts.file_palette)) do
+    vim.keymap.set({ "n", "i", "t" }, lhs, open_files, keymap_options)
+  end
+
+  local grep_keymap_options = {
     noremap = true,
     silent = true,
     nowait = true,
     desc = "Open Cododel content palette",
-  })
-  vim.keymap.set({ "n", "i", "t" }, "<Esc>[113~", open_grep, {
-    noremap = true,
-    silent = true,
-    nowait = true,
-    desc = "Open Cododel content palette",
-  })
+  }
+
+  for _, lhs in ipairs(bindings.aliases(bindings.shortcuts.content_search)) do
+    vim.keymap.set({ "n", "i", "t" }, lhs, open_grep, grep_keymap_options)
+  end
   create_commands()
 end
 

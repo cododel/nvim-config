@@ -55,10 +55,23 @@ assert(
   has_value(find_command, "!**/*.{7z,a,apk,avi,avif,bin,bmp,class,crx,deb,dmg,dll,dylib,exe,flac,gif,gz,heic,ico,ipa,iso,jar,jpeg,jpg,lz4,m4a,m4v,mkv,mov,mp3,mp4,msi,o,otf,pak,pdf,png,psd,pyc,rar,rpm,so,sqlite,sqlite3,swf,tar,tiff,ttf,wav,wasm,webm,webp,woff,woff2,xz,zip,zst}"),
   "file search excludes binary extensions"
 )
+for _, mode in ipairs({ "n", "i", "t" }) do
+  assert(mapping("<D-з>", mode) == mapping("<D-p>", mode), "Cmd+з follows Cmd+P in " .. mode)
+end
 
 mapping("<D-F>")()
 assert(calls[2].name == "live_grep", "Cmd+Shift+F opens project content search")
 assert(calls[2].opts.layout_strategy == "center", "content search uses the palette popup")
+for _, mode in ipairs({ "n", "i", "t" }) do
+  assert(
+    mapping("<D-А>", mode) == mapping("<D-F>", mode),
+    "Cmd+Shift+А follows Cmd+Shift+F in " .. mode
+  )
+  assert(
+    vim.fn.maparg("<S-D-a>", mode, false, true).callback == mapping("<D-F>", mode),
+    "terminal Cmd+Shift+F keycode opens content search in " .. mode
+  )
+end
 mapping("<Esc>[113~", "t")()
 assert(calls[3].name == "live_grep", "terminal CSI Cmd+Shift+F opens content search")
 

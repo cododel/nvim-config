@@ -1,4 +1,5 @@
 local M = {}
+local bindings = require("cododel.bindings")
 
 local state = {
   initialized = false,
@@ -153,6 +154,10 @@ local function move_horizontal(direction)
     return
   end
 
+  if zone == "files" and target == "editor" and not find_editor_window() then
+    target = "ai"
+  end
+
   if zone == "files" and state.file_sidebar.get_ai_cwd then
     state.pending_ai_cwd = state.file_sidebar.get_ai_cwd()
   end
@@ -207,15 +212,14 @@ local function create_mappings()
   }
 
   local mappings = {
-    { "<D-h>", "<Esc>[102~", move_left },
-    { "<D-j>", "<Esc>[98~", move_down },
-    { "<D-k>", "<Esc>[101~", move_up },
-    { "<D-l>", "<Esc>[99~", move_right },
+    { bindings.shortcuts.pane_left, move_left },
+    { bindings.shortcuts.pane_down, move_down },
+    { bindings.shortcuts.pane_up, move_up },
+    { bindings.shortcuts.pane_right, move_right },
   }
 
   for _, mapping in ipairs(mappings) do
-    vim.keymap.set({ "n", "i", "t" }, mapping[1], mapping[3], opts)
-    vim.keymap.set({ "n", "i", "t" }, mapping[2], mapping[3], opts)
+    bindings.set({ "n", "i", "t" }, mapping[1], mapping[2], opts)
   end
 end
 
