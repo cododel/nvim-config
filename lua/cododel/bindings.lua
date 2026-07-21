@@ -116,6 +116,10 @@ M.shortcuts = {
     latin = "<S-Esc>",
     terminal = "<Esc>[27;2u",
   },
+  git_review = {
+    latin = "<C-S-g>",
+    russian = "<C-S-п>",
+  },
 }
 
 local command_aliases = {

@@ -2,7 +2,7 @@
 
 Это новый концепт редактора поверх Neovim: основной рабочий экран остаётся редактором кода, а AI, shell и файловая навигация живут в отдельных persistent-панелях. Панели можно скрывать, не завершая процессы, и возвращать фокус прямо в редактор.
 
-Главный AI-инструмент — Codex CLI. Для этого интерфейса он выбран благодаря сочетанию сильных моделей, удобной квоты и CLI на Rust: terminal-first workflow хорошо соответствует производительности и отзывчивости самого редактора.
+AI sidebar запускает **настраиваемый** terminal CLI (по умолчанию Codex). Агент задаётся централизованно в `cododel.options` / `config/settings.lua` — это может быть `codex`, `claude`, `opencode`, `cursor-agent`, `grok` или любой другой бинарник.
 
 ## Быстрый старт
 
@@ -11,8 +11,16 @@
 - Neovim 0.12 или новее;
 - `git` и `curl` для bootstrap [`lazy.nvim`](https://github.com/folke/lazy.nvim);
 - `rg` для live grep по содержимому проекта;
-- `codex` в `PATH` для AI-панелей;
+- AI CLI в `PATH` (по умолчанию `codex`; см. `cododel.options` / `config/settings.lua`);
+- `lazygit` в `PATH` для git review mode (`Ctrl+Shift+G`);
+- `delta` (`git-delta`) в `PATH` для unified diff preview внутри LazyGit;
 - внешние инструменты форматирования и LSP-серверы, перечисленные ниже.
+
+На macOS:
+
+```sh
+brew install lazygit git-delta
+```
 
 После установки dotfiles через `stow` запусти:
 
@@ -30,7 +38,31 @@ nvim
 :checkhealth
 :LspInfo
 :ConformInfo
+:CododelDepsCheck
+:CododelDepsCheck!
+:CododelDepsClear
 ```
+
+### Внешние CLI и startup check
+
+Плагины и модули Cododel **регистрируют** бинарники через `require("cododel.deps").need({...})` рядом с местом использования. Поле `install` **обязательно** — это команда/инструкция, которую увидит пользователь, если бинарник отсутствует:
+
+```lua
+require("cododel.deps").need({
+  bin = "stylua",
+  level = "warn",
+  feature = "Format Lua",
+  install = "brew install stylua",
+})
+```
+
+После загрузки конфигов `init.lua` вызывает `require("cododel.deps").run()`:
+
+- missing → один summary `vim.notify` с `install` для каждой зависимости (без блокировки старта);
+- успешные → кеш в `state/deps-cache.json` (gitignored); следующий старт доверяет path, пока файл на диске есть;
+- `:CododelDepsCheck!` — сброс кеша и принудительная перепроверка.
+
+Это не ставит пакеты и не заменяет `:checkhealth` плагинов.
 
 ## Концепция рабочего пространства
 
@@ -56,7 +88,7 @@ flowchart LR
 - NvimTree отвечает только за файловую навигацию.
 - Снятие фокуса с панели не закрывает её и не останавливает процесс.
 
-Модули workspace изолированы в [lua/cododel/ai_sidebar.lua](lua/cododel/ai_sidebar.lua), [lua/cododel/file_sidebar.lua](lua/cododel/file_sidebar.lua), [lua/cododel/navigation.lua](lua/cododel/navigation.lua), [lua/cododel/maximize.lua](lua/cododel/maximize.lua), [lua/cododel/palette.lua](lua/cododel/palette.lua) и [lua/cododel/bindings.lua](lua/cododel/bindings.lua). Они не меняют lifecycle LSP, statusline или обычных терминалов.
+Модули workspace изолированы в [lua/cododel/ai_sidebar.lua](lua/cododel/ai_sidebar.lua), [lua/cododel/file_sidebar.lua](lua/cododel/file_sidebar.lua), [lua/cododel/navigation.lua](lua/cododel/navigation.lua), [lua/cododel/maximize.lua](lua/cododel/maximize.lua), [lua/cododel/git_review.lua](lua/cododel/git_review.lua), [lua/cododel/palette.lua](lua/cododel/palette.lua) и [lua/cododel/bindings.lua](lua/cododel/bindings.lua). Они не меняют lifecycle LSP, statusline или обычных терминалов.
 
 ## Управление панелями
 
@@ -70,9 +102,51 @@ flowchart LR
 | `Cmd+L` | Из editor открыть/focus AI; из AI скрыть его и перейти в editor; из Files перейти в editor, а при его отсутствии — в AI; из terminal перейти в AI |
 | `Cmd+P` | Открыть floating-поиск файлов; режимы picker переключаются прямо в popup |
 | `Cmd+Shift+F` | Открыть floating-поиск по содержимому проекта через `rg` |
+| `Ctrl+Shift+G` | Toggle git review mode: LazyGit (+ Delta) в колонке editor |
 | `Shift+Esc` | Maximize текущего pane (editor / Files / AI / terminal) в float с отступом 1 cell; повторно — закрыть float и вернуть фокус |
 
 Панель открывается, если она скрыта, получает фокус, если уже открыта, и скрывается при повторном нажатии из самой панели. Процессы и buffers при снятии фокуса не завершаются. Если editor pane отсутствует, fallback-фокусом становится файловое дерево.
+
+### Git review mode
+
+`Ctrl+Shift+G` (или `:CododelGitReview`) открывает LazyGit в content-колонке editor. AI sidebar и bottom terminal **не** скрываются и **не** перезапускаются:
+
+```text
+┌─ lazygit + delta ───────────┬─ chat (AI) ─┐
+│ files list │ unified diff   │  Codex      │
+├─────────────────────────────┴─────────────┤
+│              bottom terminal              │
+└───────────────────────────────────────────┘
+```
+
+На входе:
+
+- NvimTree сворачивается, если был открыт;
+- buffer и view editor-колонки сохраняются и заменяются terminal buffer с LazyGit;
+- chat и bottom остаются как были.
+
+На выходе (`q` в LazyGit или повторный `Ctrl+Shift+G`):
+
+- editor buffer и cursor/view восстанавливаются, если editor был;
+- NvimTree возвращается только если был открыт до review;
+- если editor-колонки с file buffer не было — file buffer принудительно не поднимается;
+- chat и bottom не затрагиваются.
+
+Внутри LazyGit (типичный workflow review):
+
+| Клавиша | Действие |
+|---|---|
+| `j` / `k` | предыдущий / следующий файл |
+| `Space` | stage / unstage файла |
+| `Enter` | staging по hunks / строкам |
+| `Tab` | staged / unstaged preview одного файла |
+| `e` | открыть файл в текущем Neovim (`nvim-remote`) |
+| `c` | commit |
+| `q` | закрыть LazyGit и выйти из review mode |
+
+Preview идёт через Delta (`delta --paging=never --line-numbers`). Конфиг Cododel: [lazygit/config.yml](lazygit/config.yml), подключается флагом `--use-config-file` при запуске.
+
+LazyGit показывает staged/unstaged в одном Files panel (не две отдельные секции как VS Code Source Control). Для deep side-by-side compare по-прежнему можно использовать Diffview / gitsigns отдельно.
 
 Если переход к AI начинается из файлового дерева, выбранный node определяет cwd новой Codex-сессии: директория используется напрямую, а для файла берётся его parent directory. Путь сохраняется до следующего перехода в AI; при входе из editor или другой панели остаётся обычный git-root fallback.
 
@@ -86,14 +160,31 @@ flowchart LR
 
 | Mapping | Действие |
 |---|---|
-| `Shift+H` | Предыдущий Codex-чат в активном Codex terminal |
-| `Shift+L` | Следующий Codex-чат в активном Codex terminal |
-| `:CodexNew [name]` | Создать новый Codex-чат с отдельным процессом |
-| `:CodexClose` | Остановить и закрыть активный Codex-чат |
-| `:CodexRename [name]` | Переименовать активный чат |
-| `:CodexPrev` / `:CodexNext` | Переключить предыдущий/следующий чат из командной строки |
+| `Shift+H` | Предыдущий AI-чат в активном AI terminal |
+| `Shift+L` | Следующий AI-чат в активном AI terminal |
+| `:AiNew [name]` | Создать новый AI-чат с отдельным процессом |
+| `:AiClose` | Остановить и закрыть активный AI-чат |
+| `:AiRename [name]` | Переименовать активный чат |
+| `:AiPrev` / `:AiNext` | Переключить предыдущий/следующий чат |
+| `:CodexNew` и др. | Алиасы на `:Ai*` (совместимость) |
 
-Первое открытие AI sidebar лениво запускает только один процесс Codex. Каждый новый чат получает собственный PTY и собственный scrollback.
+### Смена AI-агента
+
+Один источник правды — [lua/cododel/options.lua](lua/cododel/options.lua). Переопределение в [lua/config/settings.lua](lua/config/settings.lua) **до** `config.lazy`:
+
+```lua
+require("cododel.options").setup({
+  ai = {
+    name = "Claude",                 -- winbar / default titles
+    cmd = { "claude" },              -- termopen argv
+    install = "npm i -g @anthropic-ai/claude-code",  -- deps missing report
+  },
+})
+```
+
+`cododel.deps` проверяет `ai.cmd[1]` и показывает `install`, если бинарника нет.
+
+Первое открытие AI sidebar лениво запускает один процесс выбранного CLI. Каждый новый чат получает собственный PTY и scrollback.
 
 Каждый чат сохраняет cwd, с которым был запущен его процесс. Выбор файла в NvimTree не создаёт новый чат, если AI sidebar уже содержит живые сессии.
 
@@ -208,6 +299,9 @@ flowchart TD
 │   ├── cododel
 │   │   ├── ai_sidebar.lua
 │   │   ├── file_sidebar.lua
+│   │   ├── deps.lua
+│   │   ├── git_review.lua
+│   │   ├── maximize.lua
 │   │   ├── navigation.lua
 │   │   ├── palette.lua
 │   │   └── bindings.lua
@@ -223,9 +317,12 @@ flowchart TD
 │       ├── theme.lua
 │       ├── tree-sitter.lua
 │       └── which-keys.lua
+├── lazygit
+│   └── config.yml
 ├── tests
 │   ├── bindings_spec.lua
 │   ├── ai_sidebar_spec.lua
+│   ├── git_review_spec.lua
 │   ├── navigation_spec.lua
 │   └── run.sh
 └── .luarc.json
@@ -241,6 +338,7 @@ flowchart TD
 - Lualine — одна общая statusline снизу: branch, diff, diagnostics, filetype и активный LSP; путь к файлу и LSP скрываются, когда в фокусе terminal или NvimTree.
 - Bufferline — навигация по открытым buffers.
 - NvimTree — файловое дерево с синхронизацией корня проекта и Git-иконками.
+- Git review mode — LazyGit (+ Delta) в колонке editor по `Ctrl+Shift+G`.
 - Telescope — поиск файлов, grep, buffers, history, keymaps и registers.
 - Alpha — стартовый экран.
 - Trouble и Undotree — диагностика и история изменений.
@@ -259,8 +357,8 @@ flowchart TD
 
 ```text
 emmet_ls       eslint          ts_ls
-svelte         jsonls          lua_ls
-phpactor       ruff            basedpyright
+jsonls         lua_ls          phpactor
+ruff           basedpyright
 ```
 
 `nvim-lspconfig` только предоставляет конфигурации серверов. Исполняемые файлы LSP-серверов нужно устанавливать отдельно и сделать доступными в `PATH`.
@@ -273,7 +371,7 @@ phpactor       ruff            basedpyright
 |---|---|
 | Lua | `stylua` |
 | Python | `ruff_format`, `ruff_fix` |
-| JavaScript, TypeScript, Svelte | `prettier` |
+| JavaScript, TypeScript | `prettier` |
 | CSS, HTML, JSON, YAML, Markdown | `prettier` |
 
 ## Обычные mappings

@@ -1,6 +1,13 @@
 local M = {}
 local bindings = require("cododel.bindings")
 
+require("cododel.deps").need({
+  bin = "rg",
+  level = "error",
+  feature = "File/content search (palette)",
+  install = "brew install ripgrep",
+})
+
 local state = {
   initialized = false,
   builtin = nil,

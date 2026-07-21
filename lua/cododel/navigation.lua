@@ -24,9 +24,20 @@ local function is_tree_buffer(bufnr)
   return ok and tree_api.tree.is_tree_buf(bufnr)
 end
 
+local function is_review_window(winid)
+  local ok, git_review = pcall(require, "cododel.git_review")
+  return ok and git_review.is_review_win and git_review.is_review_win(winid)
+end
+
 local function is_editor_window(winid)
   if not vim.api.nvim_win_is_valid(winid) then
     return false
+  end
+
+  -- Git review occupies the content column as a terminal; treat it as the
+  -- editor zone so Cmd+H/J/K/L keep working without destroying review mode.
+  if is_review_window(winid) then
+    return true
   end
 
   local bufnr = vim.api.nvim_win_get_buf(winid)

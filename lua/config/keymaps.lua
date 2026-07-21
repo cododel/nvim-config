@@ -1,6 +1,8 @@
 local bindings = require("cododel.bindings")
 bindings.setup()
+require("cododel.deps").setup()
 require("cododel.maximize").setup()
+require("cododel.git_review").setup()
 
 local map = vim.keymap.set
 local default_opts = { noremap = true, silent = true }

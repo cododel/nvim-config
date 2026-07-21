@@ -4,6 +4,10 @@ return {
   {
     "nvim-telescope/telescope.nvim",
     dependencies = { "nvim-lua/plenary.nvim" },
+    -- palette registers `rg` at module load; require early so deps.run sees it
+    init = function()
+      require("cododel.palette")
+    end,
     config = function()
       require("telescope").setup({
         defaults = {

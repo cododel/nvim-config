@@ -1,10 +1,24 @@
 local M = {}
 
-local DEFAULTS = {
-  codex_cmd = { "codex" },
-  sidebar_width = 42,
-  terminal_height = 12,
-}
+local function default_options()
+  local ok, options = pcall(require, "cododel.options")
+  if ok then
+    local opts = options.get()
+    return {
+      agent_cmd = vim.deepcopy(opts.ai.cmd),
+      agent_name = opts.ai.name,
+      sidebar_width = opts.sidebar_width,
+      terminal_height = opts.terminal_height,
+    }
+  end
+
+  return {
+    agent_cmd = { "codex" },
+    agent_name = "Codex",
+    sidebar_width = 42,
+    terminal_height = 12,
+  }
+end
 
 local runtime = {
   initialized = false,
@@ -81,11 +95,12 @@ local function ai_winbar()
     )
   end
 
+  local name = runtime.options and runtime.options.agent_name or "AI"
   if #tabs == 0 then
-    return " Codex"
+    return " " .. name
   end
 
-  return " " .. table.concat(tabs, "  ") .. "  + :CodexNew"
+  return " " .. table.concat(tabs, "  ") .. "  + :AiNew"
 end
 
 local function update_ai_winbar()
@@ -198,7 +213,8 @@ local function create_codex_session(bufnr)
   local title = runtime.pending_session_name
   runtime.pending_session_name = nil
   if not title or title == "" then
-    title = "Codex " .. tostring(#runtime.ai.sessions + 1)
+    local name = runtime.options.agent_name or "AI"
+    title = name .. " " .. tostring(#runtime.ai.sessions + 1)
   end
 
   local session = {
@@ -212,7 +228,7 @@ local function create_codex_session(bufnr)
   runtime.ai.sessions[#runtime.ai.sessions + 1] = session
   runtime.ai.active = #runtime.ai.sessions
 
-  local job_id = vim.fn.termopen(vim.deepcopy(runtime.options.codex_cmd), {
+  local job_id = vim.fn.termopen(vim.deepcopy(runtime.options.agent_cmd), {
     cwd = root,
   })
   session.job_id = job_id
@@ -493,10 +509,14 @@ local function open_new_codex(name)
   runtime.ai_drawer.open({ mode = "new", focus = true })
 end
 
+local function agent_label()
+  return (runtime.options and runtime.options.agent_name) or "AI"
+end
+
 local function close_active_codex()
   local session = runtime.ai.sessions[runtime.ai.active]
   if not session then
-    vim.notify("No active Codex session", vim.log.levels.INFO)
+    vim.notify("No active " .. agent_label() .. " session", vim.log.levels.INFO)
     return
   end
 
@@ -509,7 +529,7 @@ end
 local function rename_active_codex(name)
   local session = runtime.ai.sessions[runtime.ai.active]
   if not session then
-    vim.notify("No active Codex session", vim.log.levels.INFO)
+    vim.notify("No active " .. agent_label() .. " session", vim.log.levels.INFO)
     return
   end
 
@@ -528,33 +548,57 @@ local function rename_active_codex(name)
     return
   end
 
-  vim.ui.input({ prompt = "Codex name: ", default = session.title }, apply_name)
+  vim.ui.input({
+    prompt = agent_label() .. " name: ",
+    default = session.title,
+  }, apply_name)
 end
 
 local function create_commands()
-  vim.api.nvim_create_user_command("CodexSidebarToggle", function()
+  local label = agent_label()
+
+  local function define(name, fn, opts)
+    vim.api.nvim_create_user_command(name, fn, opts)
+  end
+
+  define("AiSidebarToggle", function()
     M.panels.ai.toggle()
-  end, { desc = "Focus or toggle the Codex sidebar" })
+  end, { desc = "Focus or toggle the AI sidebar" })
 
-  vim.api.nvim_create_user_command("CodexNew", function(command)
+  define("AiNew", function(command)
     open_new_codex(command.args)
-  end, { nargs = "?", desc = "Create a Codex session" })
+  end, { nargs = "?", desc = "Create an AI session (" .. label .. ")" })
 
-  vim.api.nvim_create_user_command("CodexClose", close_active_codex, {
-    desc = "Close the active Codex session",
+  define("AiClose", close_active_codex, {
+    desc = "Close the active AI session",
   })
 
-  vim.api.nvim_create_user_command("CodexRename", function(command)
+  define("AiRename", function(command)
     rename_active_codex(command.args)
-  end, { nargs = "?", desc = "Rename the active Codex session" })
+  end, { nargs = "?", desc = "Rename the active AI session" })
 
-  vim.api.nvim_create_user_command("CodexNext", codex_next, {
-    desc = "Select the next Codex session",
+  define("AiNext", codex_next, {
+    desc = "Select the next AI session",
   })
-  vim.api.nvim_create_user_command("CodexPrev", codex_previous, {
-    desc = "Select the previous Codex session",
+  define("AiPrev", codex_previous, {
+    desc = "Select the previous AI session",
   })
-  vim.api.nvim_create_user_command("ProjectTerminalToggle", function()
+
+  -- Backward-compatible aliases (Codex-era names).
+  define("CodexSidebarToggle", function()
+    M.panels.ai.toggle()
+  end, { desc = "Alias for :AiSidebarToggle" })
+  define("CodexNew", function(command)
+    open_new_codex(command.args)
+  end, { nargs = "?", desc = "Alias for :AiNew" })
+  define("CodexClose", close_active_codex, { desc = "Alias for :AiClose" })
+  define("CodexRename", function(command)
+    rename_active_codex(command.args)
+  end, { nargs = "?", desc = "Alias for :AiRename" })
+  define("CodexNext", codex_next, { desc = "Alias for :AiNext" })
+  define("CodexPrev", codex_previous, { desc = "Alias for :AiPrev" })
+
+  define("ProjectTerminalToggle", function()
     require("cododel.navigation").toggle_bottom()
   end, { desc = "Focus or toggle the project terminal" })
 end
@@ -611,7 +655,16 @@ function M.setup(options)
   end
 
   runtime.initialized = true
-  runtime.options = vim.tbl_deep_extend("force", DEFAULTS, options or {})
+  options = options or {}
+  -- Legacy test/setup key: codex_cmd → agent_cmd
+  if options.codex_cmd and not options.agent_cmd then
+    options.agent_cmd = options.codex_cmd
+  end
+  runtime.options = vim.tbl_deep_extend("force", default_options(), options)
+
+  if type(runtime.options.agent_cmd) == "string" then
+    runtime.options.agent_cmd = { runtime.options.agent_cmd }
+  end
 
   setup_drawers()
   setup_layout_autocmds()

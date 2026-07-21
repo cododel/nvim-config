@@ -1,3 +1,23 @@
+local deps = require("cododel.deps")
+deps.need({
+  bin = "stylua",
+  level = "warn",
+  feature = "Format Lua",
+  install = "brew install stylua",
+})
+deps.need({
+  bin = "ruff",
+  level = "warn",
+  feature = "Format/lint Python",
+  install = "brew install ruff",
+})
+deps.need({
+  bin = "prettier",
+  level = "warn",
+  feature = "Format web/docs",
+  install = "brew install prettier  # or: npm i -g prettier",
+})
+
 return {
   "stevearc/conform.nvim",
   event = { "BufWritePre" },
@@ -20,7 +40,6 @@ return {
       typescript = { "prettier" },
       javascriptreact = { "prettier" },
       typescriptreact = { "prettier" },
-      svelte = { "prettier" },
       css = { "prettier" },
       html = { "prettier" },
       json = { "prettier" },

@@ -1,9 +1,16 @@
+require("cododel.deps").need({
+  bin = "tree-sitter",
+  level = "warn",
+  feature = "Treesitter CLI (parser install)",
+  install = "brew install tree-sitter",
+})
+
 return {
   "nvim-treesitter/nvim-treesitter",
   branch = "main",
   lazy = false,
   build = function()
-    if vim.fn.executable("tree-sitter") == 1 then
+    if require("cododel.deps").ensure("tree-sitter") then
       vim.cmd("TSUpdate")
     end
   end,
@@ -24,7 +31,7 @@ return {
       install_dir = vim.fn.stdpath("data") .. "/site",
     })
 
-    if vim.fn.executable("tree-sitter") == 1 then
+    if require("cododel.deps").ensure("tree-sitter") then
       treesitter.install({ "python" })
     else
       vim.notify(

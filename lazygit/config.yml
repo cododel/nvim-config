@@ -1,0 +1,13 @@
+gui:
+  sidePanelWidth: 0.28
+  showFileTree: false
+  showCommandLog: false
+  showBottomLine: true
+
+git:
+  pagers:
+    - colorArg: always
+      pager: delta --paging=never --line-numbers
+
+os:
+  editPreset: nvim-remote

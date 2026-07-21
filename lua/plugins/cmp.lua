@@ -1,3 +1,10 @@
+require("cododel.deps").need({
+  bin = "node",
+  level = "warn",
+  feature = "Copilot / Node tooling",
+  install = "brew install node",
+})
+
 return {
   -- CMP completion engine
   "hrsh7th/nvim-cmp",

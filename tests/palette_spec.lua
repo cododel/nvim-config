@@ -11,6 +11,14 @@ local builtin = setmetatable({}, {
   end,
 })
 
+package.preload["cododel.bindings"] = function()
+  return dofile(vim.fn.getcwd() .. "/lua/cododel/bindings.lua")
+end
+
+package.preload["cododel.deps"] = function()
+  return dofile(vim.fn.getcwd() .. "/lua/cododel/deps.lua")
+end
+
 package.preload["telescope.builtin"] = function()
   return builtin
 end
