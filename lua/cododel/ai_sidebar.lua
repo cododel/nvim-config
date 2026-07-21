@@ -304,46 +304,25 @@ local function create_bottom_terminal(bufnr)
   set_bottom_options(bufnr)
 end
 
-local function setup_drawers()
-  local drawer = require("nvim-drawer")
-  drawer.setup()
+local function normalize_ai_layout()
+  local drawer = runtime.ai_drawer
+  if not drawer then
+    return
+  end
 
-  runtime.ai_drawer = drawer.create_drawer({
-    position = "right",
-    size = runtime.options.sidebar_width,
-    should_close_on_bufwipeout = true,
-    on_did_create_buffer = function(event)
-      create_codex_session(event.bufnr)
-    end,
-    on_did_open_buffer = function(event)
-      set_terminal_options(event.bufnr, "codex_terminal")
-      terminal_keymaps(event.bufnr)
-      update_ai_active(event.bufnr)
-      update_ai_winbar()
-      prepare_terminal_window(event)
-    end,
-    on_did_open = function(event)
-      update_ai_active(event.bufnr)
-      update_ai_winbar()
-      prepare_terminal_window(event)
-    end,
-  })
+  local winid = drawer.get_winid()
+  if winid == -1 or not vim.api.nvim_win_is_valid(winid) then
+    return
+  end
 
-  runtime.bottom_drawer = drawer.create_drawer({
-    position = "below",
-    size = runtime.options.terminal_height,
-    should_close_on_bufwipeout = false,
-    on_did_create_buffer = function(event)
-      create_bottom_terminal(event.bufnr)
-    end,
-    on_did_open_buffer = function(event)
-      set_bottom_options(event.bufnr)
-      prepare_terminal_window(event)
-    end,
-    on_did_open = function(event)
-      prepare_terminal_window(event)
-    end,
-  })
+  -- Pin to the far right so a later file split cannot leave AI in the middle.
+  pcall(vim.api.nvim_win_call, winid, function()
+    vim.cmd("wincmd L")
+  end)
+
+  local max_width = math.max(1, vim.o.columns - 1)
+  local width = math.min(runtime.options.sidebar_width, max_width)
+  pcall(vim.api.nvim_win_set_width, winid, width)
 end
 
 local function normalize_bottom_layout()
@@ -371,6 +350,60 @@ local function normalize_bottom_layout()
   pcall(vim.api.nvim_win_set_height, winid, height)
 end
 
+-- AI first (right), then bottom (full width) — order matters for winlayout.
+local function normalize_panel_layout()
+  normalize_ai_layout()
+  normalize_bottom_layout()
+end
+
+local function schedule_normalize_panel_layout()
+  vim.schedule(normalize_panel_layout)
+end
+
+local function setup_drawers()
+  local drawer = require("nvim-drawer")
+  drawer.setup()
+
+  runtime.ai_drawer = drawer.create_drawer({
+    position = "right",
+    size = runtime.options.sidebar_width,
+    should_close_on_bufwipeout = true,
+    on_did_create_buffer = function(event)
+      create_codex_session(event.bufnr)
+    end,
+    on_did_open_buffer = function(event)
+      set_terminal_options(event.bufnr, "codex_terminal")
+      terminal_keymaps(event.bufnr)
+      update_ai_active(event.bufnr)
+      update_ai_winbar()
+      prepare_terminal_window(event)
+    end,
+    on_did_open = function(event)
+      update_ai_active(event.bufnr)
+      update_ai_winbar()
+      prepare_terminal_window(event)
+      schedule_normalize_panel_layout()
+    end,
+  })
+
+  runtime.bottom_drawer = drawer.create_drawer({
+    position = "below",
+    size = runtime.options.terminal_height,
+    should_close_on_bufwipeout = false,
+    on_did_create_buffer = function(event)
+      create_bottom_terminal(event.bufnr)
+    end,
+    on_did_open_buffer = function(event)
+      set_bottom_options(event.bufnr)
+      prepare_terminal_window(event)
+    end,
+    on_did_open = function(event)
+      prepare_terminal_window(event)
+      schedule_normalize_panel_layout()
+    end,
+  })
+end
+
 local function drawer_is_open(drawer)
   return drawer ~= nil and drawer.get_winid() ~= -1
 end
@@ -395,9 +428,7 @@ local function focus_drawer(drawer)
     enter_terminal_mode(winid)
   end
 
-  if drawer == runtime.bottom_drawer then
-    vim.schedule(normalize_bottom_layout)
-  end
+  schedule_normalize_panel_layout()
 end
 
 local function focus_ai_with_cwd(cwd)
@@ -528,6 +559,52 @@ local function create_commands()
   end, { desc = "Focus or toggle the project terminal" })
 end
 
+local function is_panel_terminal_win(winid)
+  if not vim.api.nvim_win_is_valid(winid) then
+    return false
+  end
+
+  local ft = vim.bo[vim.api.nvim_win_get_buf(winid)].filetype
+  return ft == "codex_terminal" or ft == "project_terminal"
+end
+
+local function setup_layout_autocmds()
+  local group = vim.api.nvim_create_augroup("CododelPanelLayout", { clear = true })
+
+  -- File opens and other splits redistribute widths; re-pin drawers after.
+  vim.api.nvim_create_autocmd({ "WinNew", "VimResized" }, {
+    group = group,
+    callback = function()
+      if not drawer_is_open(runtime.ai_drawer) and not drawer_is_open(runtime.bottom_drawer) then
+        return
+      end
+
+      schedule_normalize_panel_layout()
+    end,
+  })
+
+  -- :bd / window closes often land focus on the AI split in Normal mode.
+  -- Entering a panel terminal always resumes insert (terminal) mode.
+  vim.api.nvim_create_autocmd("WinEnter", {
+    group = group,
+    callback = function()
+      local winid = vim.api.nvim_get_current_win()
+      if not is_panel_terminal_win(winid) then
+        return
+      end
+
+      if runtime.ai_drawer and runtime.ai_drawer.get_winid() == winid then
+        enter_terminal_mode(winid)
+        return
+      end
+
+      if runtime.bottom_drawer and runtime.bottom_drawer.get_winid() == winid then
+        enter_terminal_mode(winid)
+      end
+    end,
+  })
+end
+
 function M.setup(options)
   if runtime.initialized then
     return
@@ -537,11 +614,16 @@ function M.setup(options)
   runtime.options = vim.tbl_deep_extend("force", DEFAULTS, options or {})
 
   setup_drawers()
+  setup_layout_autocmds()
   create_commands()
   require("cododel.navigation").setup({
     file_sidebar = require("cododel.file_sidebar"),
     panels = M.panels,
   })
 end
+
+-- Test seam for layout helpers (tree-only → AI → file regressions).
+M._normalize_panel_layout = normalize_panel_layout
+M._enter_terminal_mode = enter_terminal_mode
 
 return M
