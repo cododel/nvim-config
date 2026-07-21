@@ -52,6 +52,12 @@ local function panel()
 end
 
 local files = panel()
+local files_hide_count = 0
+local original_files_hide = files.hide
+files.hide = function()
+  files_hide_count = files_hide_count + 1
+  original_files_hide()
+end
 files.get_ai_cwd = function()
   return "/tmp/project/src"
 end
@@ -129,10 +135,24 @@ assert_current(bottom_win, "editor -> bottom again")
 k()
 assert_current(editor_win, "cmd+k from bottom -> editor")
 
+files.focus()
+files_hide_count = 0
+h()
+assert_current(editor_win, "files -> editor via Cmd+H")
+assert(files_hide_count == 1, "files hide when an editor window exists")
+
 vim.bo[editor_buf].buftype = "nofile"
 files.focus()
 l()
 assert_current(ai.win, "files -> ai when no editor window exists")
 assert(ai_cwd == "/tmp/project/src", "files selection is passed to AI without an editor")
+
+files.focus()
+files_hide_count = 0
+ai_cwd = nil
+h()
+assert_current(ai.win, "files -> ai via Cmd+H when no editor window exists")
+assert(files_hide_count == 0, "files stay open when hide would leave only drawers")
+assert(ai_cwd == "/tmp/project/src", "files selection is passed to AI on Cmd+H without an editor")
 
 print("navigation_spec: ok")

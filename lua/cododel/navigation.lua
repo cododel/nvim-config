@@ -163,7 +163,11 @@ local function move_horizontal(direction)
   end
 
   if hide_on_horizontal_move[direction][zone] then
-    panel_for_zone(zone).hide()
+    -- nvim-drawer runs :qa when the last non-drawer window closes and only
+    -- drawers remain. Keep the file sidebar open when there is no editor.
+    if zone ~= "files" or find_editor_window() then
+      panel_for_zone(zone).hide()
+    end
   end
 
   local options
