@@ -11,8 +11,6 @@ end
 return {
   "nvim-lualine/lualine.nvim",
   dependencies = {
-    "zbirenbaum/copilot.lua",
-    "AndreM222/copilot-lualine",
     'nvim-tree/nvim-web-devicons'
   },
   opts = {
@@ -48,7 +46,7 @@ return {
           cond = has_editor_context,
         },
       },
-      lualine_y = { "copilot", 'filetype' },
+      lualine_y = { 'filetype' },
       lualine_z = { 'progress', 'location' }
     },
     inactive_sections = {

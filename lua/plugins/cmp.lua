@@ -1,16 +1,8 @@
-require("cododel.deps").need({
-  bin = "node",
-  level = "warn",
-  feature = "Copilot / Node tooling",
-  install = "brew install node",
-})
-
 return {
   -- CMP completion engine
   "hrsh7th/nvim-cmp",
   dependencies = {
     -- "onsails/lspkind-nvim",     -- Icons on the popups
-    "zbirenbaum/copilot.lua",
     "neovim/nvim-lspconfig",
     "hrsh7th/cmp-nvim-lsp", -- LSP source for nvim-cmp
     "hrsh7th/cmp-buffer",
@@ -107,7 +99,6 @@ return {
       sources = {
         { name = "luasnip",  priority = 10 },
         { name = "nvim_lsp", priority = 8 },
-        { name = "copilot",  priority = 8 },
         { name = "buffer",   priority = 7 },
         { name = 'path' },
         --
@@ -115,7 +106,6 @@ return {
         -- { name = "luasnip" },
         -- { name = "buffer" },
         -- { name = "path",    group_index = 2 },
-        -- { name = "copilot", group_index = 2 },
       },
       sorting = {
         priority_weight = 1.0,

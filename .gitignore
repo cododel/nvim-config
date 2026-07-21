@@ -12,6 +12,7 @@
 .netrwhist
 
 # Neovim local state
+nvim.log
 Session.vim
 session.vim
 shada/

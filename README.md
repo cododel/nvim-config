@@ -345,7 +345,7 @@ flowchart TD
 
 ### Редактирование и completion
 
-- `nvim-cmp` с источниками LSP, LuaSnip, Copilot, buffer и path.
+- `nvim-cmp` с источниками LSP, LuaSnip, buffer и path.
 - LuaSnip с `friendly-snippets`.
 - `conform.nvim` для форматирования.
 - Treesitter с новой API-веткой `main` и автоматическим запуском подсветки для Lua, Python и Markdown.
